@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  --color-germany: #4A4A52;
+  --color-ussr: #8B2020;
+  --color-uk: #1E3F7A;
+  --color-usa: #6B7A3A;
+  --color-japan: #8B6914;
+  --color-france: #2A4A7A;
+  --color-italy: #3A6B3A;
+  --color-neutral: #9E9E82;
+  --color-sea: #1a3a5c;
+}
+
+body {
+  margin: 0;
+  background: #1a1a1a;
+  color: #e0e0d0;
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+}

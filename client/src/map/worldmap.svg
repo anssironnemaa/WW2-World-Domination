@@ -1,0 +1,385 @@
+<svg viewBox="0 0 1400 800" xmlns="http://www.w3.org/2000/svg" id="ww2-map">
+  <defs>
+    <style>
+      .territory { stroke: #222; stroke-width: 0.8; cursor: pointer; transition: filter 0.15s; }
+      .territory:hover { filter: brightness(1.35); stroke: #fff; stroke-width: 1.2; }
+      .territory.selected { filter: brightness(1.5); stroke: #ffe066; stroke-width: 1.8; }
+      .sea-zone { fill: #1a3a5c; stroke: #2a5a8c; stroke-width: 0.5; cursor: pointer; opacity: 0.85; }
+      .sea-zone:hover { opacity: 1; stroke: #7ab; stroke-width: 1; }
+      .sea-zone.selected { opacity: 1; stroke: #ffe066; stroke-width: 1.5; }
+      .vc-star { font-size: 7px; fill: #ffe066; pointer-events: none; }
+      .factory-icon { font-size: 6px; fill: #ccc; pointer-events: none; }
+      .zone-label { font-size: 5px; fill: #eee; pointer-events: none; font-family: Arial, sans-serif; text-anchor: middle; }
+      .sea-label { font-size: 5px; fill: #8bb; pointer-events: none; font-family: Arial, sans-serif; text-anchor: middle; }
+      .chokepoint-mark { stroke: #ffe066; stroke-width: 2; stroke-dasharray: 3,2; }
+    </style>
+    <!-- Nation fills -->
+    <pattern id="neutral-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
+      <path d="M0,4 L4,0" stroke="#9E9E82" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- === SEA BACKGROUND === -->
+  <rect width="1400" height="800" fill="#0d2035"/>
+
+  <!-- === SEA ZONES === -->
+  <!-- SZ-1 North Atlantic -->
+  <path id="sz_1" class="sea-zone" d="M 230 30 L 380 30 L 420 120 L 380 200 L 300 230 L 220 200 L 190 120 Z" data-id="sz_1"/>
+  <!-- SZ-2 Central Atlantic -->
+  <path id="sz_2" class="sea-zone" d="M 200 280 L 340 240 L 380 340 L 340 440 L 200 460 L 160 380 Z" data-id="sz_2"/>
+  <!-- SZ-3 South Atlantic -->
+  <path id="sz_3" class="sea-zone" d="M 200 480 L 360 460 L 400 560 L 360 650 L 220 660 L 170 580 Z" data-id="sz_3"/>
+  <!-- SZ-4 Caribbean -->
+  <path id="sz_4" class="sea-zone" d="M 130 200 L 230 190 L 250 270 L 180 300 L 110 270 Z" data-id="sz_4"/>
+  <!-- SZ-5 Arctic -->
+  <path id="sz_5" class="sea-zone" d="M 320 0 L 700 0 L 700 60 L 550 80 L 400 70 L 320 40 Z" data-id="sz_5"/>
+  <!-- SZ-6 Baltic -->
+  <path id="sz_6" class="sea-zone" d="M 590 100 L 650 90 L 680 140 L 650 170 L 590 165 L 565 135 Z" data-id="sz_6"/>
+  <!-- SZ-7 North Sea -->
+  <path id="sz_7" class="sea-zone" d="M 430 90 L 530 80 L 580 110 L 565 165 L 510 185 L 445 175 L 415 135 Z" data-id="sz_7"/>
+  <!-- SZ-8 West Mediterranean -->
+  <path id="sz_8" class="sea-zone" d="M 450 220 L 560 215 L 610 260 L 580 300 L 490 310 L 440 275 Z" data-id="sz_8"/>
+  <!-- SZ-9 East Mediterranean -->
+  <path id="sz_9" class="sea-zone" d="M 600 230 L 700 225 L 720 280 L 690 310 L 600 315 L 575 270 Z" data-id="sz_9"/>
+  <!-- SZ-10 Black Sea -->
+  <path id="sz_10" class="sea-zone" d="M 660 190 L 740 185 L 760 215 L 740 240 L 660 240 L 640 215 Z" data-id="sz_10"/>
+  <!-- SZ-11 Red Sea -->
+  <path id="sz_11" class="sea-zone" d="M 680 310 L 720 305 L 740 370 L 710 400 L 675 390 L 660 345 Z" data-id="sz_11"/>
+  <!-- SZ-12 Indian Ocean West -->
+  <path id="sz_12" class="sea-zone" d="M 700 380 L 840 360 L 880 460 L 840 540 L 710 550 L 665 470 Z" data-id="sz_12"/>
+  <!-- SZ-13 Indian Ocean East -->
+  <path id="sz_13" class="sea-zone" d="M 880 380 L 1020 360 L 1060 460 L 1020 540 L 895 550 L 860 460 Z" data-id="sz_13"/>
+  <!-- SZ-14 South China Sea -->
+  <path id="sz_14" class="sea-zone" d="M 1040 280 L 1130 270 L 1160 370 L 1120 440 L 1040 450 L 1000 370 Z" data-id="sz_14"/>
+  <!-- SZ-15 East China / Japan Sea -->
+  <path id="sz_15" class="sea-zone" d="M 1130 180 L 1220 170 L 1250 260 L 1210 320 L 1130 330 L 1100 250 Z" data-id="sz_15"/>
+  <!-- SZ-16 North Pacific -->
+  <path id="sz_16" class="sea-zone" d="M 30 30 L 130 30 L 140 130 L 90 160 L 30 130 Z" data-id="sz_16"/>
+  <!-- SZ-17 Central Pacific -->
+  <path id="sz_17" class="sea-zone" d="M 30 200 L 150 180 L 170 320 L 120 390 L 30 370 Z" data-id="sz_17"/>
+  <!-- SZ-18 West Pacific -->
+  <path id="sz_18" class="sea-zone" d="M 1220 200 L 1370 200 L 1390 350 L 1280 380 L 1210 340 L 1200 260 Z" data-id="sz_18"/>
+  <!-- SZ-19 South Pacific -->
+  <path id="sz_19" class="sea-zone" d="M 1100 470 L 1370 460 L 1390 600 L 1200 640 L 1070 590 Z" data-id="sz_19"/>
+  <!-- SZ-20 Persian Gulf -->
+  <path id="sz_20" class="sea-zone" d="M 760 320 L 820 315 L 840 360 L 810 385 L 760 380 L 740 350 Z" data-id="sz_20"/>
+
+  <!-- === LAND TERRITORIES === -->
+
+  <!-- ===== NORTH AMERICA ===== -->
+  <!-- t1 Eastern USA -->
+  <path id="t1" class="territory" fill="#6B7A3A" d="M 145 130 L 230 120 L 250 145 L 245 190 L 220 215 L 200 250 L 170 260 L 140 240 L 120 200 L 125 160 Z" data-id="t1"/>
+  <!-- t2 Central USA -->
+  <path id="t2" class="territory" fill="#6B7A3A" d="M 60 130 L 145 130 L 125 160 L 120 200 L 100 220 L 70 210 L 45 185 L 42 155 Z" data-id="t2"/>
+  <!-- t3 Western USA -->
+  <path id="t3" class="territory" fill="#6B7A3A" d="M 32 80 L 62 75 L 80 90 L 60 130 L 42 155 L 20 140 L 15 100 Z" data-id="t3"/>
+  <!-- t4 Alaska -->
+  <path id="t4" class="territory" fill="#6B7A3A" d="M 30 30 L 120 28 L 130 60 L 100 80 L 62 75 L 32 80 L 28 55 Z" data-id="t4"/>
+  <!-- t5 Hawaii -->
+  <path id="t5" class="territory" fill="#6B7A3A" d="M 60 340 L 90 335 L 95 355 L 65 360 Z" data-id="t5"/>
+  <!-- t6 Philippines -->
+  <path id="t6" class="territory" fill="#6B7A3A" d="M 1130 330 L 1155 320 L 1170 360 L 1155 390 L 1125 395 L 1115 365 Z" data-id="t6"/>
+  <!-- t7 Guam / Marianas -->
+  <path id="t7" class="territory" fill="#6B7A3A" d="M 1220 330 L 1245 325 L 1250 355 L 1225 360 Z" data-id="t7"/>
+  <!-- t8 Eastern Canada -->
+  <path id="t8" class="territory" fill="#1E3F7A" d="M 230 30 L 380 30 L 370 80 L 310 100 L 260 120 L 230 120 L 220 80 Z" data-id="t8"/>
+  <!-- t9 Western Canada -->
+  <path id="t9" class="territory" fill="#1E3F7A" d="M 30 30 L 230 30 L 220 80 L 155 100 L 100 90 L 60 75 L 30 55 Z" data-id="t9"/>
+  <!-- t10 Greenland / Iceland -->
+  <path id="t10" class="territory" fill="#1E3F7A" d="M 320 0 L 400 0 L 410 40 L 380 55 L 335 50 L 315 28 Z" data-id="t10"/>
+  <!-- t11 Caribbean / Central America -->
+  <path id="t11" class="territory" fill="#9E9E82" d="M 130 200 L 165 195 L 175 230 L 160 255 L 130 255 L 110 230 Z" data-id="t11"/>
+  <!-- t12 Venezuela / Colombia -->
+  <path id="t12" class="territory" fill="#9E9E82" d="M 175 270 L 220 265 L 230 310 L 210 340 L 170 345 L 155 310 L 160 280 Z" data-id="t12"/>
+  <!-- t13 Brazil -->
+  <path id="t13" class="territory" fill="#9E9E82" d="M 200 340 L 260 320 L 300 380 L 290 450 L 240 480 L 195 470 L 165 420 L 170 360 Z" data-id="t13"/>
+  <!-- t14 Argentina / Chile -->
+  <path id="t14" class="territory" fill="#9E9E82" d="M 200 480 L 250 475 L 270 540 L 255 620 L 220 650 L 195 620 L 185 550 Z" data-id="t14"/>
+  <!-- t15 Peru / Ecuador -->
+  <path id="t15" class="territory" fill="#9E9E82" d="M 155 310 L 195 305 L 200 360 L 180 390 L 150 385 L 135 350 Z" data-id="t15"/>
+
+  <!-- ===== WESTERN EUROPE ===== -->
+  <!-- t16 UK / London -->
+  <path id="t16" class="territory" fill="#1E3F7A" d="M 440 90 L 490 85 L 500 115 L 480 145 L 450 148 L 430 125 Z" data-id="t16"/>
+  <!-- t17 Ireland -->
+  <path id="t17" class="territory" fill="#9E9E82" d="M 415 95 L 440 90 L 430 125 L 412 128 Z" data-id="t17"/>
+  <!-- t18 France / Paris -->
+  <path id="t18" class="territory" fill="#2A4A7A" d="M 490 145 L 540 138 L 565 165 L 560 195 L 525 205 L 490 195 L 478 172 Z" data-id="t18"/>
+  <!-- t19 Southern France -->
+  <path id="t19" class="territory" fill="#2A4A7A" d="M 490 195 L 540 195 L 560 215 L 545 240 L 510 248 L 480 232 L 474 212 Z" data-id="t19"/>
+  <!-- t20 Spain / Portugal -->
+  <path id="t20" class="territory" fill="#9E9E82" d="M 445 175 L 492 172 L 480 210 L 450 220 L 425 205 L 420 185 Z" data-id="t20"/>
+  <!-- t21 Benelux -->
+  <path id="t21" class="territory" fill="#9E9E82" d="M 530 135 L 565 130 L 570 155 L 545 165 L 525 158 Z" data-id="t21"/>
+  <!-- t22 Denmark -->
+  <path id="t22" class="territory" fill="#9E9E82" d="M 548 95 L 580 90 L 592 110 L 575 128 L 548 122 Z" data-id="t22"/>
+  <!-- t23 Norway -->
+  <path id="t23" class="territory" fill="#9E9E82" d="M 490 55 L 580 45 L 595 90 L 548 95 L 510 85 L 495 70 Z" data-id="t23"/>
+  <!-- t24 Sweden -->
+  <path id="t24" class="territory" fill="#9E9E82" d="M 580 45 L 650 40 L 660 90 L 640 110 L 595 110 L 580 75 Z" data-id="t24"/>
+  <!-- t25 Finland -->
+  <path id="t25" class="territory" fill="#9E9E82" d="M 640 30 L 710 28 L 720 75 L 690 95 L 655 90 L 640 60 Z" data-id="t25"/>
+
+  <!-- ===== GERMANY ===== -->
+  <!-- t26 Germany / Berlin -->
+  <path id="t26" class="territory" fill="#4A4A52" d="M 570 128 L 615 122 L 640 148 L 625 170 L 590 172 L 565 158 Z" data-id="t26"/>
+  <!-- t27 Ruhr -->
+  <path id="t27" class="territory" fill="#4A4A52" d="M 510 148 L 545 145 L 565 165 L 560 188 L 530 190 L 505 175 Z" data-id="t27"/>
+  <!-- t28 Bavaria -->
+  <path id="t28" class="territory" fill="#4A4A52" d="M 545 175 L 590 172 L 610 198 L 595 220 L 560 222 L 538 205 Z" data-id="t28"/>
+  <!-- t29 East Prussia -->
+  <path id="t29" class="territory" fill="#4A4A52" d="M 630 115 L 680 110 L 695 135 L 675 150 L 640 148 L 622 132 Z" data-id="t29"/>
+  <!-- t30 Austria / Bohemia -->
+  <path id="t30" class="territory" fill="#4A4A52" d="M 590 172 L 640 165 L 660 188 L 645 210 L 610 212 L 592 196 Z" data-id="t30"/>
+  <!-- t31 Switzerland -->
+  <path id="t31" class="territory" fill="#9E9E82" d="M 538 198 L 565 195 L 572 215 L 553 225 L 532 218 Z" data-id="t31"/>
+  <!-- t32 Poland -->
+  <path id="t32" class="territory" fill="#9E9E82" d="M 615 122 L 680 115 L 700 145 L 680 168 L 640 165 L 618 148 Z" data-id="t32"/>
+  <!-- t33 Romania -->
+  <path id="t33" class="territory" fill="#9E9E82" d="M 660 175 L 720 170 L 740 200 L 725 222 L 680 225 L 655 205 Z" data-id="t33"/>
+  <!-- t34 Hungary -->
+  <path id="t34" class="territory" fill="#9E9E82" d="M 615 195 L 660 188 L 680 210 L 660 230 L 620 228 L 600 212 Z" data-id="t34"/>
+  <!-- t35 Yugoslavia / Greece -->
+  <path id="t35" class="territory" fill="#9E9E82" d="M 578 220 L 620 215 L 640 245 L 625 270 L 590 272 L 568 250 Z" data-id="t35"/>
+  <!-- t36 Bulgaria -->
+  <path id="t36" class="territory" fill="#9E9E82" d="M 635 225 L 675 222 L 688 248 L 668 265 L 630 265 L 618 245 Z" data-id="t36"/>
+  <!-- t37 Turkey -->
+  <path id="t37" class="territory" fill="#9E9E82" d="M 690 220 L 780 215 L 800 250 L 770 270 L 695 268 L 672 245 Z" data-id="t37"/>
+
+  <!-- ===== USSR ===== -->
+  <!-- t38 Leningrad / Karelia -->
+  <path id="t38" class="territory" fill="#8B2020" d="M 660 28 L 780 25 L 790 75 L 750 95 L 700 100 L 670 80 L 650 50 Z" data-id="t38"/>
+  <!-- t39 Belorussia -->
+  <path id="t39" class="territory" fill="#8B2020" d="M 680 120 L 740 115 L 755 148 L 730 168 L 690 168 L 668 145 Z" data-id="t39"/>
+  <!-- t40 Ukraine / Kiev -->
+  <path id="t40" class="territory" fill="#8B2020" d="M 700 148 L 760 145 L 775 180 L 755 205 L 700 208 L 672 185 Z" data-id="t40"/>
+  <!-- t41 Russia / Moscow -->
+  <path id="t41" class="territory" fill="#8B2020" d="M 750 60 L 870 55 L 890 130 L 840 155 L 760 148 L 738 100 Z" data-id="t41"/>
+  <!-- t42 Caucasus -->
+  <path id="t42" class="territory" fill="#8B2020" d="M 755 205 L 820 200 L 840 240 L 820 265 L 760 265 L 740 235 Z" data-id="t42"/>
+  <!-- t43 Urals -->
+  <path id="t43" class="territory" fill="#8B2020" d="M 855 75 L 970 70 L 980 150 L 935 165 L 860 158 L 845 110 Z" data-id="t43"/>
+  <!-- t44 Siberia -->
+  <path id="t44" class="territory" fill="#8B2020" d="M 960 55 L 1100 50 L 1110 130 L 1050 145 L 970 138 L 955 90 Z" data-id="t44"/>
+  <!-- t45 Far East Russia -->
+  <path id="t45" class="territory" fill="#8B2020" d="M 1090 30 L 1240 28 L 1250 100 L 1180 120 L 1095 115 L 1075 70 Z" data-id="t45"/>
+
+  <!-- ===== AFRICA / MIDDLE EAST ===== -->
+  <!-- t46 French North Africa -->
+  <path id="t46" class="territory" fill="#2A4A7A" d="M 440 280 L 580 275 L 600 340 L 570 380 L 450 385 L 425 345 L 428 300 Z" data-id="t46"/>
+  <!-- t47 Libya -->
+  <path id="t47" class="territory" fill="#3A6B3A" d="M 560 278 L 640 272 L 660 340 L 635 380 L 565 385 L 545 345 Z" data-id="t47"/>
+  <!-- t48 Egypt / Suez -->
+  <path id="t48" class="territory" fill="#1E3F7A" d="M 640 272 L 710 268 L 720 320 L 695 355 L 645 360 L 622 320 Z" data-id="t48"/>
+  <!-- t49 Arabia / Palestine -->
+  <path id="t49" class="territory" fill="#9E9E82" d="M 710 268 L 800 263 L 820 340 L 790 380 L 720 385 L 695 345 Z" data-id="t49"/>
+  <!-- t50 Persia / Iraq -->
+  <path id="t50" class="territory" fill="#9E9E82" d="M 780 220 L 870 215 L 890 290 L 860 330 L 785 335 L 758 270 Z" data-id="t50"/>
+  <!-- t51 West Africa -->
+  <path id="t51" class="territory" fill="#9E9E82" d="M 415 345 L 510 340 L 530 420 L 500 460 L 415 460 L 390 410 Z" data-id="t51"/>
+  <!-- t52 East Africa -->
+  <path id="t52" class="territory" fill="#1E3F7A" d="M 660 360 L 740 355 L 760 430 L 720 480 L 660 480 L 635 430 Z" data-id="t52"/>
+  <!-- t53 South Africa -->
+  <path id="t53" class="territory" fill="#9E9E82" d="M 540 460 L 660 455 L 680 540 L 640 600 L 560 608 L 510 555 L 508 490 Z" data-id="t53"/>
+  <!-- t54 Congo / Central Africa -->
+  <path id="t54" class="territory" fill="#9E9E82" d="M 510 390 L 640 385 L 655 450 L 620 475 L 510 470 L 490 430 Z" data-id="t54"/>
+
+  <!-- ===== ITALY ===== -->
+  <!-- t55 Northern Italy -->
+  <path id="t55" class="territory" fill="#3A6B3A" d="M 543 222 L 580 218 L 596 242 L 578 258 L 548 255 L 535 238 Z" data-id="t55"/>
+  <!-- t56 Italy / Rome -->
+  <path id="t56" class="territory" fill="#3A6B3A" d="M 555 258 L 590 255 L 608 290 L 590 318 L 558 320 L 540 288 Z" data-id="t56"/>
+
+  <!-- ===== SOUTH / SOUTHEAST ASIA ===== -->
+  <!-- t57 India / Calcutta -->
+  <path id="t57" class="territory" fill="#1E3F7A" d="M 855 210 L 990 205 L 1010 300 L 970 355 L 870 360 L 835 290 Z" data-id="t57"/>
+  <!-- t58 Malaya / Singapore -->
+  <path id="t58" class="territory" fill="#1E3F7A" d="M 1020 360 L 1060 355 L 1075 410 L 1048 435 L 1010 430 L 995 395 Z" data-id="t58"/>
+  <!-- t59 Dutch East Indies -->
+  <path id="t59" class="territory" fill="#9E9E82" d="M 1050 430 L 1200 420 L 1220 500 L 1160 540 L 1055 535 L 1030 480 Z" data-id="t59"/>
+  <!-- t60 French Indochina -->
+  <path id="t60" class="territory" fill="#2A4A7A" d="M 1040 265 L 1095 258 L 1110 315 L 1075 340 L 1028 335 L 1010 295 Z" data-id="t60"/>
+  <!-- t61 Siam / Thailand -->
+  <path id="t61" class="territory" fill="#9E9E82" d="M 995 295 L 1040 288 L 1055 330 L 1030 355 L 990 355 L 970 325 Z" data-id="t61"/>
+  <!-- t62 China / Chungking -->
+  <path id="t62" class="territory" fill="#9E9E82" d="M 920 150 L 1050 145 L 1070 230 L 1025 260 L 910 255 L 890 200 Z" data-id="t62"/>
+  <!-- t63 China / Shanghai -->
+  <path id="t63" class="territory" fill="#9E9E82" d="M 1050 155 L 1150 148 L 1165 220 L 1115 255 L 1050 248 L 1030 195 Z" data-id="t63"/>
+
+  <!-- ===== JAPAN ===== -->
+  <!-- t64 Manchuria -->
+  <path id="t64" class="territory" fill="#8B6914" d="M 1150 80 L 1240 75 L 1260 150 L 1215 175 L 1145 170 L 1125 115 Z" data-id="t64"/>
+  <!-- t65 Korea / Formosa -->
+  <path id="t65" class="territory" fill="#8B6914" d="M 1200 160 L 1250 155 L 1265 205 L 1235 228 L 1195 225 L 1182 185 Z" data-id="t65"/>
+  <!-- t66 Japan / Tokyo -->
+  <path id="t66" class="territory" fill="#8B6914" d="M 1255 115 L 1330 108 L 1355 175 L 1315 200 L 1250 195 L 1238 148 Z" data-id="t66"/>
+  <!-- t67 Kyushu / Shikoku -->
+  <path id="t67" class="territory" fill="#8B6914" d="M 1250 200 L 1310 195 L 1325 240 L 1290 258 L 1248 252 L 1235 225 Z" data-id="t67"/>
+  <!-- t68 Gilbert / Marshall Islands -->
+  <path id="t68" class="territory" fill="#8B6914" d="M 1300 390 L 1330 385 L 1338 410 L 1308 415 Z" data-id="t68"/>
+
+  <!-- ===== PACIFIC / OCEANIA ===== -->
+  <!-- t69 Australia -->
+  <path id="t69" class="territory" fill="#1E3F7A" d="M 1070 530 L 1260 520 L 1295 620 L 1240 680 L 1105 688 L 1050 618 Z" data-id="t69"/>
+  <!-- t70 Solomon Islands / Papua -->
+  <path id="t70" class="territory" fill="#9E9E82" d="M 1240 470 L 1310 462 L 1330 510 L 1295 530 L 1240 525 Z" data-id="t70"/>
+
+  <!-- === ICONS LAYER === -->
+  <!-- VC stars -->
+  <text x="200" y="190" class="vc-star">★</text><!-- Washington -->
+  <text x="44" y="135" class="vc-star">★</text><!-- San Francisco -->
+  <text x="72" y="345" class="vc-star">★</text><!-- Pearl Harbor -->
+  <text x="1141" y="360" class="vc-star">★</text><!-- Manila -->
+  <text x="466" y="120" class="vc-star">★</text><!-- London -->
+  <text x="872" y="335" class="vc-star">★</text><!-- Calcutta -->
+  <text x="675" y="306" class="vc-star">★</text><!-- Cairo -->
+  <text x="808" y="120" class="vc-star">★</text><!-- Moscow -->
+  <text x="720" y="172" class="vc-star">★</text><!-- Kiev -->
+  <text x="712" y="78" class="vc-star">★</text><!-- Leningrad -->
+  <text x="510" y="162" class="vc-star">★</text><!-- Paris -->
+  <text x="596" y="142" class="vc-star">★</text><!-- Berlin -->
+  <text x="564" y="278" class="vc-star">★</text><!-- Rome -->
+  <text x="1292" y="150" class="vc-star">★</text><!-- Tokyo -->
+  <text x="1095" y="225" class="vc-star">★</text><!-- Shanghai -->
+
+  <!-- Factory icons (⚙) -->
+  <text x="185" y="182" class="factory-icon">⚙</text>
+  <text x="60" y="158" class="factory-icon">⚙</text>
+  <text x="35" y="110" class="factory-icon">⚙</text>
+  <text x="314" y="60" class="factory-icon">⚙</text>
+  <text x="100" y="60" class="factory-icon">⚙</text>
+  <text x="470" y="112" class="factory-icon">⚙</text>
+  <text x="510" y="170" class="factory-icon">⚙</text>
+  <text x="512" y="203" class="factory-icon">⚙</text>
+  <text x="596" y="142" class="factory-icon">⚙</text>
+  <text x="540" y="162" class="factory-icon">⚙</text>
+  <text x="562" y="185" class="factory-icon">⚙</text>
+  <text x="650" y="42" class="factory-icon">⚙</text>
+  <text x="668" y="58" class="factory-icon">⚙</text>
+  <text x="722" y="165" class="factory-icon">⚙</text>
+  <text x="748" y="108" class="factory-icon">⚙</text>
+  <text x="808" y="120" class="factory-icon">⚙</text>
+  <text x="800" y="230" class="factory-icon">⚙</text>
+  <text x="905" y="120" class="factory-icon">⚙</text>
+  <text x="462" y="325" class="factory-icon">⚙</text>
+  <text x="572" y="285" class="factory-icon">⚙</text>
+  <text x="572" y="283" class="factory-icon">⚙</text>
+  <text x="885" y="278" class="factory-icon">⚙</text>
+  <text x="1180" y="116" class="factory-icon">⚙</text>
+  <text x="1293" y="148" class="factory-icon">⚙</text>
+  <text x="1270" y="225" class="factory-icon">⚙</text>
+  <text x="1158" y="600" class="factory-icon">⚙</text>
+
+  <!-- Chokepoint markers -->
+  <line x1="436" y1="212" x2="444" y2="228" class="chokepoint-mark"/><!-- Gibraltar -->
+  <line x1="698" y1="315" x2="706" y2="325" class="chokepoint-mark"/><!-- Suez -->
+  <line x1="693" y1="232" x2="703" y2="242" class="chokepoint-mark"/><!-- Bosphorus -->
+  <line x1="155" y1="240" x2="163" y2="252" class="chokepoint-mark"/><!-- Panama -->
+
+  <!-- === TERRITORY LABELS === -->
+  <!-- North America -->
+  <text x="183" y="178" class="zone-label">Itä-USA</text>
+  <text x="95" y="175" class="zone-label">Keski-USA</text>
+  <text x="44" y="118" class="zone-label">Länsi-USA</text>
+  <text x="78" y="55" class="zone-label">Alaska</text>
+  <text x="76" y="348" class="zone-label">Havaiji</text>
+  <text x="1143" y="365" class="zone-label">Filippiinit</text>
+  <text x="1235" y="343" class="zone-label">Guam</text>
+  <text x="310" y="62" class="zone-label">Itä-Kanada</text>
+  <text x="128" y="62" class="zone-label">Länsi-Kanada</text>
+  <text x="360" y="28" class="zone-label">Grönlanti</text>
+  <text x="148" y="225" class="zone-label">Karibia</text>
+  <text x="193" y="308" class="zone-label">Venezuela</text>
+  <text x="235" y="400" class="zone-label">Brasilia</text>
+  <text x="228" y="560" class="zone-label">Argentiina</text>
+  <text x="165" y="352" class="zone-label">Peru</text>
+
+  <!-- Western Europe -->
+  <text x="462" y="118" class="zone-label">UK</text>
+  <text x="423" y="108" class="zone-label">Irlanti</text>
+  <text x="518" y="172" class="zone-label">Ranska</text>
+  <text x="512" y="220" class="zone-label">E-Ranska</text>
+  <text x="454" y="198" class="zone-label">Espanja</text>
+  <text x="544" y="152" class="zone-label">Benelux</text>
+  <text x="566" y="110" class="zone-label">Tanska</text>
+  <text x="536" y="72" class="zone-label">Norja</text>
+  <text x="618" y="72" class="zone-label">Ruotsi</text>
+  <text x="676" y="58" class="zone-label">Suomi</text>
+
+  <!-- Germany -->
+  <text x="598" y="150" class="zone-label">Berliini</text>
+  <text x="534" y="170" class="zone-label">Ruhr</text>
+  <text x="574" y="200" class="zone-label">Baijeri</text>
+  <text x="658" y="133" class="zone-label">Itä-Preussi</text>
+  <text x="626" y="192" class="zone-label">It-Valita</text>
+  <text x="548" y="212" class="zone-label">Sveitsi</text>
+  <text x="648" y="140" class="zone-label">Puola</text>
+  <text x="694" y="200" class="zone-label">Romania</text>
+  <text x="636" y="212" class="zone-label">Unkari</text>
+  <text x="600" y="246" class="zone-label">Jugoslavia</text>
+  <text x="652" y="246" class="zone-label">Bulgaria</text>
+  <text x="734" y="245" class="zone-label">Turkki</text>
+
+  <!-- USSR -->
+  <text x="718" y="62" class="zone-label">Leningrad</text>
+  <text x="716" y="140" class="zone-label">Belovenäjä</text>
+  <text x="726" y="175" class="zone-label">Ukraina</text>
+  <text x="808" y="108" class="zone-label">Moskova</text>
+  <text x="782" y="235" class="zone-label">Kaukasus</text>
+  <text x="908" y="115" class="zone-label">Ural</text>
+  <text x="1028" y="100" class="zone-label">Siperia</text>
+  <text x="1162" y="72" class="zone-label">Kaukoitä</text>
+
+  <!-- Africa -->
+  <text x="500" y="335" class="zone-label">P-Afrikka</text>
+  <text x="600" y="330" class="zone-label">Libya</text>
+  <text x="668" y="315" class="zone-label">Egypti</text>
+  <text x="754" y="325" class="zone-label">Arabia</text>
+  <text x="828" y="275" class="zone-label">Persia</text>
+  <text x="458" y="418" class="zone-label">L-Afrikka</text>
+  <text x="695" y="425" class="zone-label">I-Afrikka</text>
+  <text x="590" y="530" class="zone-label">E-Afrikka</text>
+  <text x="580" y="430" class="zone-label">Kongo</text>
+
+  <!-- Italy -->
+  <text x="562" y="240" class="zone-label">P-Italia</text>
+  <text x="572" y="288" class="zone-label">Rooma</text>
+
+  <!-- Asia -->
+  <text x="948" y="285" class="zone-label">Intia</text>
+  <text x="1034" y="400" class="zone-label">Malesia</text>
+  <text x="1130" y="482" class="zone-label">H.Itä-Intia</text>
+  <text x="1072" y="300" class="zone-label">Indokiina</text>
+  <text x="1012" y="325" class="zone-label">Siam</text>
+  <text x="982" y="208" class="zone-label">Kiina</text>
+  <text x="1098" y="205" class="zone-label">Shanghai</text>
+  <text x="1192" y="128" class="zone-label">Mantšuria</text>
+  <text x="1228" y="192" class="zone-label">Korea</text>
+  <text x="1292" y="155" class="zone-label">Tokio</text>
+  <text x="1278" y="228" class="zone-label">Kyushu</text>
+  <text x="1318" y="400" class="zone-label">Gilbert</text>
+  <text x="1175" y="608" class="zone-label">Australia</text>
+  <text x="1278" y="495" class="zone-label">Salomonsaaret</text>
+
+  <!-- Sea zone labels -->
+  <text x="305" y="125" class="sea-label">SZ-1</text>
+  <text x="270" y="360" class="sea-label">SZ-2</text>
+  <text x="280" y="560" class="sea-label">SZ-3</text>
+  <text x="178" y="248" class="sea-label">SZ-4</text>
+  <text x="520" y="42" class="sea-label">SZ-5</text>
+  <text x="620" y="132" class="sea-label">SZ-6</text>
+  <text x="490" y="130" class="sea-label">SZ-7</text>
+  <text x="502" y="265" class="sea-label">SZ-8</text>
+  <text x="644" y="272" class="sea-label">SZ-9</text>
+  <text x="698" y="215" class="sea-label">SZ-10</text>
+  <text x="694" y="355" class="sea-label">SZ-11</text>
+  <text x="775" y="460" class="sea-label">SZ-12</text>
+  <text x="960" y="460" class="sea-label">SZ-13</text>
+  <text x="1082" y="365" class="sea-label">SZ-14</text>
+  <text x="1175" y="250" class="sea-label">SZ-15</text>
+  <text x="80" y="88" class="sea-label">SZ-16</text>
+  <text x="90" y="288" class="sea-label">SZ-17</text>
+  <text x="1298" y="290" class="sea-label">SZ-18</text>
+  <text x="1238" y="548" class="sea-label">SZ-19</text>
+  <text x="785" y="352" class="sea-label">SZ-20</text>
+</svg>

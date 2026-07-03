@@ -1,0 +1,8 @@
+{
+  "name": "ww2-world-dominance",
+  "private": true,
+  "description": "Root — Vercel serverless functions (/api). Frontend lives in client/.",
+  "dependencies": {
+    "@google/genai": "^1.0.0"
+  }
+}

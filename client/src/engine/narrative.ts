@@ -1,0 +1,49 @@
+// Client-side narrative driver: turns the round's mechanical results into a
+// factual event list and asks /api/narrative to render it as prose.
+import type { GameState, Nation } from '../data/types'
+
+export type NarrativeKind = 'bulletin' | 'battle' | 'documentary'
+export type NarrativeResult = { text: string; source: 'gemini' | 'mock' }
+
+// Factual one-liners describing every battle this round.
+export function battleEvents(game: GameState): string[] {
+  return game.battleReports.map(b => {
+    if (b.winner === 'attacker') return `${b.attacker} captured ${b.zoneName} from ${b.defender}`
+    if (b.winner === 'defender') return `${b.defender} repelled ${b.attacker}'s assault on ${b.zoneName}`
+    return `${b.attacker}'s attack on ${b.zoneName} ended in stalemate`
+  })
+}
+
+export function incomeEvents(game: GameState): string[] {
+  return (Object.entries(game.incomeReport) as [Nation, number][])
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([n, v]) => `${n} drew ${v} IPC in production`)
+}
+
+async function post(body: unknown): Promise<NarrativeResult> {
+  const res = await fetch('/api/narrative', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Narrative endpoint returned ${res.status}`)
+  return res.json() as Promise<NarrativeResult>
+}
+
+export function requestBulletin(game: GameState): Promise<NarrativeResult> {
+  const events = [...battleEvents(game), ...incomeEvents(game)]
+  return post({ kind: 'bulletin', round: game.round, events })
+}
+
+export function requestBattleNarration(game: GameState, zoneId: string): Promise<NarrativeResult> {
+  const b = game.battleReports.find(r => r.zoneId === zoneId)
+  const events = b ? b.log : []
+  return post({ kind: 'battle', round: game.round, events, focus: b?.zoneName })
+}
+
+export function requestDocumentary(game: GameState, victor?: Nation): Promise<NarrativeResult> {
+  const events = battleEvents(game)
+  return post({ kind: 'documentary', round: game.round, events, focus: victor })
+}
