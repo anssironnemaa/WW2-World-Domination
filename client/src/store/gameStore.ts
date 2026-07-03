@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { GameState, Nation, Phase, Player, PlayerType, Territory, SeaZone, MoveOrder } from '../data/types'
+import type { GameState, Nation, Phase, Player, PlayerType, Territory, SeaZone, MoveOrder, AiDifficulty } from '../data/types'
 import { TERRITORIES, SEA_ZONES } from '../data/territories'
 import { STARTING_FORCES } from '../data/starting'
 import { UNIT_TYPES } from '../data/units'
@@ -193,7 +193,7 @@ type GameStore = {
   selectedZoneId: string | null
   nationColors: Record<Nation, string>
 
-  initGame: (playerConfig: Record<Nation, { type: PlayerType; pin: string }>) => void
+  initGame: (playerConfig: Record<Nation, { type: PlayerType; pin: string }>, aiDifficulty?: AiDifficulty) => void
   selectZone: (id: string | null) => void
   calculateIncome: (nation: Nation) => number
 
@@ -217,7 +217,7 @@ export const useGameStore = create<GameStore>()(
     selectedZoneId: null,
     nationColors: NATION_COLORS,
 
-    initGame: (playerConfig) => {
+    initGame: (playerConfig, aiDifficulty = 'normal') => {
       const territories = initTerritories()
       const seaZones = initSeaZones()
       placeStartingUnits(territories, seaZones)
@@ -258,6 +258,8 @@ export const useGameStore = create<GameStore>()(
           winner: null,
           winningParties: [],
           victoryType: null,
+          chronicle: [],
+          aiDifficulty,
         }
       })
     },
@@ -490,6 +492,10 @@ export const useGameStore = create<GameStore>()(
                 rounds: [], attackerRemaining: attackerForce, defenderRemaining: {},
                 winner: 'attacker', log: [`${attacker} occupies ${zone.nameEN} unopposed`],
               } as BattleResult)
+              g.chronicle.push({
+                round: g.round, kind: 'conquest',
+                text: `${attacker} occupied ${zone.nameEN}${(zone as Territory).isVC ? ` (Victory City ${(zone as Territory).vcName})` : ''} unopposed`,
+              })
             }
             continue
           }
@@ -504,6 +510,12 @@ export const useGameStore = create<GameStore>()(
           }
           if (result.winner === 'attacker' && isLand && hasLandUnits(result.attackerRemaining)) {
             (zone as Territory).owner = attacker
+            g.chronicle.push({
+              round: g.round, kind: 'conquest',
+              text: `${attacker} captured ${zone.nameEN}${(zone as Territory).isVC ? ` (Victory City ${(zone as Territory).vcName})` : ''} from ${defender}`,
+            })
+          } else if (result.winner === 'defender') {
+            g.chronicle.push({ round: g.round, kind: 'battle', text: `${defender} repelled ${attacker} at ${zone.nameEN}` })
           }
         }
         // Territory ownership may have changed — evaluate victory conditions.
@@ -524,6 +536,19 @@ export const useGameStore = create<GameStore>()(
           g.players[nation].ipc += income
           g.incomeReport[nation] = income
         }
+        // Record a power snapshot: leader by IPC and by Victory Cities held.
+        const vcTally: Partial<Record<Nation, number>> = {}
+        for (const t of Object.values(g.territories)) {
+          if (t.isVC && t.owner !== 'Neutral' && t.owner !== 'None') vcTally[t.owner] = (vcTally[t.owner] ?? 0) + 1
+        }
+        const ipcLeader = DEFAULT_NATIONS.reduce((a, b) => (g.players[b].ipc > g.players[a].ipc ? b : a))
+        const vcLeader = (Object.entries(vcTally) as [Nation, number][]).sort((a, b) => b[1] - a[1])[0]
+        g.chronicle.push({
+          round: g.round, kind: 'power',
+          text: `By round ${g.round}, ${ipcLeader} led in production (${g.players[ipcLeader].ipc} IPC)` +
+            (vcLeader ? `; ${vcLeader[0]} held the most Victory Cities (${vcLeader[1]})` : ''),
+        })
+
         // Advance production queues; deploy finished units at their factory
         for (const [nationStr, queue] of Object.entries(g.productionQueues)) {
           const nation = nationStr as Nation

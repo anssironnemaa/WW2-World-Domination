@@ -5,7 +5,7 @@
 // Gemini-backed with a deterministic template fallback, so it always produces
 // something even without a key. Same pattern as api/_lib/aiMove.ts.
 
-export type NarrativeKind = 'bulletin' | 'battle' | 'documentary'
+export type NarrativeKind = 'bulletin' | 'battle' | 'documentary' | 'history'
 
 export type NarrativeRequest = {
   kind: NarrativeKind
@@ -20,6 +20,7 @@ const SYSTEM: Record<NarrativeKind, string> = {
   bulletin: `You are a WW2 radio war correspondent broadcasting a world news bulletin. Given the round's events, write a vivid but concise dispatch of 2-4 sentences. Period tone, no bullet points, no headings. Do not invent outcomes not present in the events.`,
   battle: `You are a WW2 war correspondent. Dramatize the given battle in 2-3 sentences — tense and evocative, but faithful to who won and what was lost. No headings.`,
   documentary: `You are the narrator of a somber WW2 documentary. Write a 3-5 sentence closing reflection on how the war ended, given the events. Measured, historical, elegiac. No headings.`,
+  history: `You are a historian writing the definitive account of this war for posterity. You are given a chronological list of the war's events (battles, conquests, shifting balances of power, treaties made and broken) and the eventual victor. Write a vivid, flowing narrative history of 3-5 short paragraphs that tells the STORY of the war: how it opened, how power shifted between the belligerents, which alliances formed and which collapsed, the pivotal turning points, and how the winner ultimately rose to dominate the world. Be engaging and dramatic but faithful to the events given — do not invent battles or outcomes not listed. Reference specific nations, cities, and rounds. No headings, no bullet points; write it as prose a reader would enjoy.`,
 }
 
 // ── Deterministic fallback ────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ function mockNarrative(req: NarrativeRequest): NarrativeResult {
       bulletin: `Round ${req.round}: an uneasy quiet settles over the fronts. No major engagements were reported.`,
       battle: `The engagement at ${req.focus ?? 'the front'} ended without decisive result.`,
       documentary: `And so the guns fell silent, the map redrawn by ambition and attrition alike.`,
+      history: `The war passed with few recorded engagements${req.focus ? `, yet ${req.focus} emerged supreme` : ''}. What manoeuvres decided it are lost to the archives.`,
     }
     return { text: empty[req.kind], source: 'mock' }
   }
@@ -38,6 +40,7 @@ function mockNarrative(req: NarrativeRequest): NarrativeResult {
     bulletin: `Round ${req.round} dispatch — across the theatres of war: ${joined}. Commanders on every side weigh their next move as the balance of power shifts.`,
     battle: `At ${req.focus ?? 'the front'}, the fighting was fierce. ${joined}.`,
     documentary: `When at last the war concluded${req.focus ? ` with ${req.focus} ascendant` : ''}, the ledger of these years read plainly: ${joined}. History would remember the cost.`,
+    history: `The history of the war, in brief: ${joined}.${req.focus ? ` Through these turns of fortune, ${req.focus} rose to dominate the world.` : ''}`,
   }
   return { text: text[req.kind], source: 'mock' }
 }

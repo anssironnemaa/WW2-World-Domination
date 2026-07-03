@@ -127,6 +127,15 @@ export type DiplomacyLogEntry = {
   text: string
 }
 
+export type AiDifficulty = 'easy' | 'normal' | 'hard'
+
+// A running chronicle of significant game events, used to write the war history.
+export type ChronicleEntry = {
+  round: number
+  kind: 'battle' | 'conquest' | 'power' | 'treaty'
+  text: string
+}
+
 // ── Espionage ─────────────────────────────────────────────────────────────────
 export type SpyOrder = {
   spy: Nation            // spending nation
@@ -167,4 +176,7 @@ export type GameState = {
   winner: Nation | null
   winningParties: Nation[]        // solo: [winner]; alliance: all members
   victoryType: 'solo' | 'alliance' | null
+  // War history
+  chronicle: ChronicleEntry[]
+  aiDifficulty: AiDifficulty
 }

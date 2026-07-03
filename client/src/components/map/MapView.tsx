@@ -44,12 +44,13 @@ export function MapView() {
 
   // Apply ownership colors and selection highlight
   useEffect(() => {
-    const svg = svgRef.current
+    const svg = containerRef.current?.querySelector('svg')
     if (!game || !svg) return
 
     Object.values(game.territories).forEach(t => {
-      const el = svg.querySelector<SVGElement>(`#${t.id}`)
-      if (el) el.style.fill = NATION_COLORS[t.owner] ?? NATION_COLORS['Neutral']
+      const color = NATION_COLORS[t.owner] ?? NATION_COLORS['Neutral']
+      // A territory may be split across multiple paths sharing the same data-id.
+      svg.querySelectorAll<SVGElement>(`[data-id="${t.id}"]`).forEach(el => { el.style.fill = color })
     })
 
     svg.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'))
@@ -60,7 +61,7 @@ export function MapView() {
 
   // Unit markers — deferred so SVG layout is complete before calling getBBox
   useEffect(() => {
-    const svg = svgRef.current
+    const svg = svgRef.current ?? containerRef.current?.querySelector('svg')
     if (!game || !svg) return
 
     const render = () => {

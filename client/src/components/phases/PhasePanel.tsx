@@ -596,7 +596,7 @@ function AiControl() {
     const snapshot = useGameStore.getState().game!
     const settled = await Promise.all(pending.map(async (nation): Promise<{ nation: Nation; res: AiResult; err?: string }> => {
       try {
-        return { nation, res: await requestAiMove(snapshot, nation) }
+        return { nation, res: await requestAiMove(snapshot, nation, snapshot.aiDifficulty) }
       } catch (e) {
         return { nation, res: { moves: [], reasoning: '', source: 'mock' }, err: e instanceof Error ? e.message : String(e) }
       }
