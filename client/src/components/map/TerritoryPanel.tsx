@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NATION_COLORS, useGameStore } from '../../store/gameStore'
-import { UNIT_TYPES } from '../../data/units'
+import { unitName, UNIT_TYPES } from '../../data/units'
+import { ADJACENCY, ZONE_KIND } from '../../data/adjacency'
 import type { Territory, SeaZone, Nation } from '../../data/types'
 
 type Props = {
@@ -63,12 +64,10 @@ export function TerritoryPanel({ territory, seaZone, onClose }: Props) {
       }}>
         <div>
           <div style={{ fontWeight: 'bold', fontSize: 14, color: '#fff', letterSpacing: 0.5 }}>
-            {isSea ? zone.nameFI : (t?.nameEN?.toUpperCase() ?? zone.nameFI.toUpperCase())}
+            {(isSea ? zone.nameEN : (t?.nameEN ?? zone.nameEN ?? '')).toUpperCase()}
           </div>
-          {t && (
-            <div style={{ fontSize: 10, color: '#666', marginTop: 1 }}>
-              {t.nameFI} {t.isVC ? '★' : ''}
-            </div>
+          {t && t.isVC && (
+            <div style={{ fontSize: 10, color: '#ffe066', marginTop: 1 }}>★ {t.vcName}</div>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -178,6 +177,17 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
     setPicks({})
   }
 
+  // Transport / carrier capacity in adjacent sea zones (for ferrying across water)
+  const adjacentSeaCapacity = (ADJACENCY[zoneId] ?? [])
+    .filter(z => ZONE_KIND[z] === 'sea')
+    .map(z => {
+      const sea = game.seaZones[z]
+      const tp = (sea?.units[orderingNation]?.transport ?? 0) * 2
+      const cv = (sea?.units[orderingNation]?.carrier ?? 0) * 2
+      return { name: sea?.nameEN ?? z, tp, cv }
+    })
+    .filter(s => s.tp > 0 || s.cv > 0)
+
   return (
     <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 12px' }}>
       <div style={{ fontSize: 10, color: '#c8a830', fontWeight: 'bold', letterSpacing: 1, marginBottom: 6 }}>PLAN SECRET MOVE</div>
@@ -186,7 +196,7 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
         return (
           <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <div style={{ flex: 1, fontSize: 11, color: '#ddd' }}>
-              {UNIT_TYPES[uid]?.nameFI ?? uid} <span style={{ color: '#666' }}>({count}{committedHere ? ` · ${committedHere} moving` : ''})</span>
+              {unitName(uid)} <span style={{ color: '#666' }}>· move {UNIT_TYPES[uid]?.move ?? 1} ({count}{committedHere ? ` · ${committedHere} moving` : ''})</span>
             </div>
             <button onClick={() => dec(uid)} disabled={(picks[uid] ?? 0) === 0} style={stepBtn((picks[uid] ?? 0) === 0)}>−</button>
             <span style={{ minWidth: 16, textAlign: 'center', fontSize: 12, fontWeight: 'bold', color: (picks[uid] ?? 0) > 0 ? '#ffe066' : '#555' }}>{picks[uid] ?? ''}</span>
@@ -207,6 +217,16 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
       >
         {pendingMove ? 'CHOOSE DESTINATION ON MAP…' : `🎯 SELECT DESTINATION (${totalPicked})`}
       </button>
+      <div style={{ fontSize: 9, color: '#667', marginTop: 6, lineHeight: 1.4 }}>
+        Units advance up to their move each turn; farther targets become auto-continuing standing orders. Land units cross open sea only via a Transport, aircraft land at sea only on a Carrier.
+      </div>
+      {adjacentSeaCapacity.length > 0 && (
+        <div style={{ fontSize: 9, color: '#8ab4d8', marginTop: 4 }}>
+          {adjacentSeaCapacity.map((s, i) => (
+            <div key={i}>🚢 {s.name}: {s.tp > 0 ? `${s.tp} transport slots` : ''}{s.tp > 0 && s.cv > 0 ? ' · ' : ''}{s.cv > 0 ? `${s.cv} carrier slots` : ''}</div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

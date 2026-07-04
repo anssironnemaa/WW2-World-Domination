@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
+import { listSaves, deleteSave, exportSave, importSaveFile, type SaveMeta } from '../../engine/saves'
+import { roundToDate } from '../../data/calendar'
 import type { Nation, PlayerType, AiDifficulty } from '../../data/types'
 
 const NATIONS = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy'] as const
@@ -30,8 +32,12 @@ const TYPE_COLOR: Record<PlayerType, string> = { human: '#3a6b8a', ai: '#6a4a8a'
 
 export function Lobby() {
   const initGame = useGameStore(s => s.initGame)
+  const loadWar = useGameStore(s => s.loadWar)
   const [rows, setRows] = useState<Record<PlayableNation, Row>>(DEFAULT_ROWS)
   const [difficulty, setDifficulty] = useState<AiDifficulty>('normal')
+  const [warName, setWarName] = useState('')
+  const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
+  const refreshSaves = () => setSaves(listSaves())
 
   const cycleType = (n: PlayableNation) => setRows(r => {
     const idx = TYPE_CYCLE.indexOf(r[n].type)
@@ -52,7 +58,8 @@ export function Lobby() {
   const start = () => {
     if (!canStart) return
     const config = { ...rows, Neutral: { type: 'npn', pin: '0000' }, None: { type: 'npn', pin: '0000' } } as Record<Nation, { type: PlayerType; pin: string }>
-    initGame(config, difficulty)
+    const name = warName.trim() || `War of ${new Date().toLocaleDateString()}`
+    initGame(config, difficulty, name)
   }
 
   return (
@@ -66,7 +73,51 @@ export function Lobby() {
           <div style={{ fontSize: 12, letterSpacing: 4, color: '#8a9bb0', marginTop: 4 }}>ASSEMBLE THE POWERS · 1939</div>
         </div>
 
-        <div style={{ fontSize: 11, color: '#7a8aa0', textAlign: 'center', margin: '14px 0 18px', lineHeight: 1.5 }}>
+        {/* Continue / import a saved war */}
+        {(saves.length > 0 || true) && (
+          <div style={{ margin: '16px 0', padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid #222' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1 }}>▸ SAVED WARS</span>
+              <label style={{ fontSize: 10, color: '#8ab4d8', cursor: 'pointer', border: '1px solid #3a5b7a', borderRadius: 4, padding: '3px 8px' }}>
+                ⬆ IMPORT FILE
+                <input type="file" accept="application/json,.json" style={{ display: 'none' }}
+                  onChange={async e => {
+                    const f = e.target.files?.[0]; if (!f) return
+                    const meta = await importSaveFile(f)
+                    if (meta) refreshSaves(); else alert('That file is not a valid saved war.')
+                    e.target.value = ''
+                  }} />
+              </label>
+            </div>
+            {saves.length === 0 ? (
+              <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>No saved wars yet — start one below, or import a save file.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {saves.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.03)', border: '1px solid #222' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, color: '#fff', fontWeight: 'bold' }}>{s.name}</div>
+                      <div style={{ fontSize: 10, color: '#667' }}>{roundToDate(s.round).short} · saved {new Date(s.savedAt).toLocaleString()}</div>
+                    </div>
+                    <button onClick={() => loadWar(s.id)} style={{ padding: '5px 12px', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>▶ CONTINUE</button>
+                    <button onClick={() => exportSave(s.id)} title="Export to file" style={{ background: 'none', border: '1px solid #3a5b7a', borderRadius: 4, color: '#8ab4d8', cursor: 'pointer', fontSize: 12, padding: '3px 7px' }}>⬇</button>
+                    <button onClick={() => { if (confirm(`Delete saved war "${s.name}"?`)) { deleteSave(s.id); refreshSaves() } }} title="Delete" style={{ background: 'none', border: 'none', color: '#e05050', cursor: 'pointer', fontSize: 14 }}>🗑</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ textAlign: 'center', fontSize: 10, color: '#556', marginTop: 10 }}>— or start a new war below —</div>
+          </div>
+        )}
+
+        {/* New war name */}
+        <div style={{ margin: '16px 0 8px' }}>
+          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, marginBottom: 5 }}>NAME THIS WAR</div>
+          <input value={warName} onChange={e => setWarName(e.target.value)} placeholder="e.g. Operation Barbarossa"
+            style={{ width: '100%', background: '#0f141a', border: '1px solid #333', borderRadius: 6, color: '#fff', padding: '9px 12px', fontSize: 14 }} />
+        </div>
+
+        <div style={{ fontSize: 11, color: '#7a8aa0', textAlign: 'center', margin: '10px 0 18px', lineHeight: 1.5 }}>
           Tap each power to set it as Human, AI, or Neutral. Human players enter a
           secret 4-digit PIN to lock in their orders during the game.
         </div>

@@ -7,7 +7,7 @@ const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June',
 
 const START_YEAR = 1939
 const START_MONTH_INDEX = 8 // September (0-based)
-const MONTHS_PER_ROUND = 4
+const MONTHS_PER_ROUND = 2  // each turn spans two months
 
 export type GameDate = {
   year: number

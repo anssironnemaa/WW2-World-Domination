@@ -15,3 +15,15 @@ export const UNIT_TYPES: Record<string, UnitType> = {
   cruiser: { id: "cruiser", nameFI: "Risteilij\u00e4", cost: 12, buildTime: 3, attack: 3, defend: 3, move: 2, category: "navy", special: "Rannikkotuki: H:3 laukaus maihinnousussa." },
   carrier: { id: "carrier", nameFI: "Lentotukialus", cost: 14, buildTime: 4, attack: 1, defend: 2, move: 2, category: "navy", special: "Kantaa 2 h\u00e4vitt\u00e4j\u00e4\u00e4. Tason 3 teknologialla kest\u00e4\u00e4 2 osumaa." },
 }
+
+// English display names + a helper (the source table is Finnish).
+export const UNIT_NAME_EN: Record<string, string> = {
+  partisan: "Partisans", infantry: "Infantry", artillery: "Artillery",
+  mechanized_infantry: "Mech. Infantry", tank: "Tank", fighter: "Fighter",
+  bomber: "Bomber", submarine: "Submarine", transport: "Transport",
+  destroyer: "Destroyer", cruiser: "Cruiser", carrier: "Carrier", battleship: "Battleship",
+}
+
+export function unitName(uid: string): string {
+  return UNIT_NAME_EN[uid] ?? UNIT_TYPES[uid]?.nameFI ?? uid
+}

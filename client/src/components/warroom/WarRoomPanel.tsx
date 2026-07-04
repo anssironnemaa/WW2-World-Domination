@@ -24,36 +24,84 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
   const snap = history[idx]
   const prev = idx > 0 ? history[idx - 1] : null
 
-  // Colour the map by ownership at the selected round; flag the territories that
-  // changed hands since the previous round — the moving front.
+  // Colour the map by ownership at the selected round; overlay that round's
+  // movement arrows, battle sites, troop totals, and flag the moving front.
   useEffect(() => {
     const svg = containerRef.current?.querySelector('svg')
     if (!svg || !snap) return
-    svg.querySelectorAll('.front-flag').forEach(el => el.remove())
+    svg.querySelectorAll('.wr-overlay').forEach(el => el.remove())
     const SVGNS = 'http://www.w3.org/2000/svg'
+    const anchor = (id: string): [number, number] | null => {
+      const el = svg.querySelector<SVGElement>(`[data-id="${id}"][data-cx]`)
+      return el ? [Number(el.getAttribute('data-cx')), Number(el.getAttribute('data-cy'))] : null
+    }
+    const add = (el: SVGElement) => { el.classList.add('wr-overlay'); (el as SVGElement).style.pointerEvents = 'none'; svg.appendChild(el) }
 
+    // Ownership recolor + front flags
     for (const [tid, owner] of Object.entries(snap.ownership)) {
       const color = NATION_COLORS[owner as Nation] ?? NATION_COLORS['Neutral']
       const changed = prev && prev.ownership[tid] && prev.ownership[tid] !== owner
       svg.querySelectorAll<SVGElement>(`[data-id="${tid}"]`).forEach(el => {
-        el.style.fill = color
-        el.style.stroke = changed ? '#ffe066' : '#0a0a0a'
-        el.style.strokeWidth = changed ? '2' : '0.7'
+        el.style.fill = color; el.style.stroke = changed ? '#ffe066' : '#0a0a0a'; el.style.strokeWidth = changed ? '2' : '0.7'
       })
       if (changed) {
-        const anchorEl = svg.querySelector<SVGElement>(`[data-id="${tid}"][data-cx]`)
-        if (!anchorEl) continue
-        const cx = Number(anchorEl.getAttribute('data-cx')), cy = Number(anchorEl.getAttribute('data-cy'))
-        const g = document.createElementNS(SVGNS, 'g'); g.setAttribute('class', 'front-flag'); g.style.pointerEvents = 'none'
+        const a = anchor(tid); if (!a) continue
+        const g = document.createElementNS(SVGNS, 'g')
         const pole = document.createElementNS(SVGNS, 'line')
-        pole.setAttribute('x1', String(cx)); pole.setAttribute('y1', String(cy)); pole.setAttribute('x2', String(cx)); pole.setAttribute('y2', String(cy - 11))
+        pole.setAttribute('x1', String(a[0])); pole.setAttribute('y1', String(a[1])); pole.setAttribute('x2', String(a[0])); pole.setAttribute('y2', String(a[1] - 11))
         pole.setAttribute('stroke', '#111'); pole.setAttribute('stroke-width', '0.8'); g.appendChild(pole)
         const flag = document.createElementNS(SVGNS, 'polygon')
-        flag.setAttribute('points', `${cx},${cy - 11} ${cx + 8},${cy - 9} ${cx},${cy - 7}`)
+        flag.setAttribute('points', `${a[0]},${a[1] - 11} ${a[0] + 8},${a[1] - 9} ${a[0]},${a[1] - 7}`)
         flag.setAttribute('fill', NATION_COLORS[owner as Nation] ?? '#fff'); flag.setAttribute('stroke', '#000'); flag.setAttribute('stroke-width', '0.4')
-        g.appendChild(flag); svg.appendChild(g)
+        g.appendChild(flag); add(g)
       }
     }
+
+    // Troop total badges per zone
+    for (const [zid, per] of Object.entries(snap.forces)) {
+      const a = anchor(zid); if (!a) continue
+      const entries = Object.entries(per) as [Nation, number][]
+      entries.forEach(([nat, tot], i) => {
+        const y = a[1] + (i - (entries.length - 1) / 2) * 8
+        const g = document.createElementNS(SVGNS, 'g')
+        const rect = document.createElementNS(SVGNS, 'rect')
+        rect.setAttribute('x', String(a[0] - 6)); rect.setAttribute('y', String(y - 3.5)); rect.setAttribute('width', '12'); rect.setAttribute('height', '7'); rect.setAttribute('rx', '1.5')
+        rect.setAttribute('fill', NATION_COLORS[nat] ?? '#888'); rect.setAttribute('stroke', '#000'); rect.setAttribute('stroke-width', '0.4')
+        g.appendChild(rect)
+        const text = document.createElementNS(SVGNS, 'text')
+        text.setAttribute('x', String(a[0])); text.setAttribute('y', String(y + 1.6)); text.setAttribute('text-anchor', 'middle')
+        text.setAttribute('font-size', '5'); text.setAttribute('font-weight', 'bold'); text.setAttribute('fill', '#fff'); text.setAttribute('font-family', 'sans-serif')
+        text.textContent = String(tot); g.appendChild(text); add(g)
+      })
+    }
+
+    // Battle marks this round
+    for (const b of snap.battles) {
+      const a = anchor(b.zoneId); if (!a) continue
+      const g = document.createElementNS(SVGNS, 'g')
+      const outer = document.createElementNS(SVGNS, 'circle')
+      outer.setAttribute('cx', String(a[0] + 7)); outer.setAttribute('cy', String(a[1] - 7)); outer.setAttribute('r', '4'); outer.setAttribute('fill', '#c0392b'); outer.setAttribute('stroke', '#000'); outer.setAttribute('stroke-width', '0.5'); g.appendChild(outer)
+      const inner = document.createElementNS(SVGNS, 'circle')
+      inner.setAttribute('cx', String(a[0] + 7)); inner.setAttribute('cy', String(a[1] - 7.4)); inner.setAttribute('r', '1.8'); inner.setAttribute('fill', '#ffcc33'); g.appendChild(inner)
+      add(g)
+    }
+
+    // Movement arrows this round
+    snap.arrows.forEach((o, idx2) => {
+      const s = anchor(o.from), d = anchor(o.to); if (!s || !d) return
+      const [sx, sy] = s, [dx, dy] = d
+      const len = Math.hypot(dx - sx, dy - sy) || 1
+      const nx = -(dy - sy) / len, ny = (dx - sx) / len
+      const bow = Math.min(40, len * 0.18) * (idx2 % 2 === 0 ? 1 : -1)
+      const mx = (sx + dx) / 2 + nx * bow, my = (sy + dy) / 2 + ny * bow
+      const color = NATION_COLORS[o.nation] ?? '#fff'
+      const ang = Math.atan2(dy - my, dx - mx), ah = 7
+      const g = document.createElementNS(SVGNS, 'g')
+      const halo = document.createElementNS(SVGNS, 'path'); halo.setAttribute('d', `M${sx},${sy} Q${mx},${my} ${dx},${dy}`); halo.setAttribute('fill', 'none'); halo.setAttribute('stroke', '#000'); halo.setAttribute('stroke-width', '4'); halo.setAttribute('opacity', '0.5'); g.appendChild(halo)
+      const path = document.createElementNS(SVGNS, 'path'); path.setAttribute('d', `M${sx},${sy} Q${mx},${my} ${dx},${dy}`); path.setAttribute('fill', 'none'); path.setAttribute('stroke', color); path.setAttribute('stroke-width', '2.4'); path.setAttribute('stroke-dasharray', '5 3'); g.appendChild(path)
+      const head = document.createElementNS(SVGNS, 'polygon'); head.setAttribute('points', `${dx},${dy} ${dx - ah * Math.cos(ang - 0.4)},${dy - ah * Math.sin(ang - 0.4)} ${dx - ah * Math.cos(ang + 0.4)},${dy - ah * Math.sin(ang + 0.4)}`); head.setAttribute('fill', color); g.appendChild(head)
+      add(g)
+    })
   }, [snap, prev, svgContent, idx])
 
   // Conquests this round for the caption
@@ -74,7 +122,7 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
 
       {history.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#667', fontStyle: 'italic' }}>
-          No rounds recorded yet — the front map appears after the first round completes.
+          No turns recorded yet — the front map appears after the first turn completes.
         </div>
       ) : (
         <>

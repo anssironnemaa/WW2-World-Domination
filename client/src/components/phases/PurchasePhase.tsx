@@ -1,20 +1,20 @@
 import { useState, useMemo } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
-import { UNIT_TYPES } from '../../data/units'
+import { UNIT_TYPES, unitName } from '../../data/units'
 import type { Nation, UnitType } from '../../data/types'
 
 const NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
 
 const NATION_LABELS: Record<string, string> = {
-  Germany: 'Saksa', USSR: 'Neuvostoliitto', UK: 'Iso-Britannia',
-  USA: 'Yhdysvallat', Japan: 'Japani', France: 'Ranska', Italy: 'Italia',
+  Germany: 'Germany', USSR: 'Soviet Union', UK: 'Britain',
+  USA: 'United States', Japan: 'Japan', France: 'France', Italy: 'Italy',
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  infantry: 'Jalkaväki',
-  armor: 'Panssarit',
-  air: 'Ilmavoimat',
-  navy: 'Laivasto',
+  infantry: 'Infantry',
+  armor: 'Armor',
+  air: 'Air Force',
+  navy: 'Navy',
 }
 
 type Cart = Record<string, number>  // unitId -> count
@@ -98,16 +98,16 @@ export function PurchasePhase({ nation, onClose }: Props) {
         }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>
-              Ostosvaihe — {NATION_LABELS[nation] ?? nation}
+              Purchase — {NATION_LABELS[nation] ?? nation}
             </div>
             <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
-              Valitse yksiköt ja kohdetehdas
+              Choose units and a factory
             </div>
           </div>
           <button onClick={onClose} style={{
             background: 'none', border: '1px solid #555', borderRadius: 4,
             color: '#aaa', cursor: 'pointer', padding: '4px 12px', fontSize: 13,
-          }}>✕ Sulje</button>
+          }}>✕ Close</button>
         </div>
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -135,10 +135,10 @@ export function PurchasePhase({ nation, onClose }: Props) {
                     }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, color: '#fff', fontWeight: inCart > 0 ? 'bold' : 'normal' }}>
-                          {unit.nameFI}
+                          {unitName(unit.id)}
                         </div>
                         <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
-                          H:{unit.attack} P:{unit.defend} Liike:{unit.move} · {unit.buildTime} kk
+                          Atk {unit.attack} · Def {unit.defend} · Move {unit.move} · {unit.buildTime}mo build
                         </div>
                       </div>
                       <div style={{ fontSize: 13, color: '#ffe066', fontWeight: 'bold', minWidth: 36, textAlign: 'right' }}>
@@ -175,26 +175,26 @@ export function PurchasePhase({ nation, onClose }: Props) {
               padding: 12,
               border: '1px solid #333',
             }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>BUDJETTI</div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>BUDGET</div>
               <div style={{ fontSize: 22, fontWeight: 'bold', color: '#ffe066' }}>{budget} IPC</div>
               <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: '#aaa' }}>Ostettu:</span>
+                <span style={{ color: '#aaa' }}>Spent:</span>
                 <span style={{ color: '#e08a8a' }}>−{cartCost} IPC</span>
               </div>
               <div style={{
                 marginTop: 4, padding: '4px 0', borderTop: '1px solid #333',
                 display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 'bold',
               }}>
-                <span style={{ color: '#aaa' }}>Jäljellä:</span>
+                <span style={{ color: '#aaa' }}>Remaining:</span>
                 <span style={{ color: remaining < 0 ? '#e05050' : '#7acd7a' }}>{remaining} IPC</span>
               </div>
             </div>
 
             {/* Factory selector */}
             <div>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>KOHDETEHDAS</div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>TARGET FACTORY</div>
               {factories.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>Ei tehtaita</div>
+                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>No factories</div>
               ) : (
                 factories.map(f => {
                   const cap = f.ipc - f.factoryDamage
@@ -212,7 +212,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                       }}
                     >
                       <div style={{ fontWeight: 'bold' }}>{f.nameFI}</div>
-                      <div style={{ fontSize: 11, color: '#888' }}>Kapasiteetti: {cap} yksikköä</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>Capacity: {cap} units</div>
                     </button>
                   )
                 })
@@ -222,7 +222,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
             {/* Cart summary */}
             {cartCount > 0 && (
               <div>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>OSTOSKORI</div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>CART</div>
                 <div style={{
                   background: 'rgba(255,255,255,0.04)',
                   borderRadius: 6,
@@ -233,13 +233,13 @@ export function PurchasePhase({ nation, onClose }: Props) {
                     const u = UNIT_TYPES[uid]
                     return (
                       <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3, color: '#ccc' }}>
-                        <span>{count}× {u?.nameFI ?? uid}</span>
+                        <span>{count}× {unitName(uid)}</span>
                         <span style={{ color: '#ffe066' }}>{(u?.cost ?? 0) * count}</span>
                       </div>
                     )
                   })}
                   <div style={{ borderTop: '1px solid #333', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 13 }}>
-                    <span style={{ color: '#aaa' }}>Yhteensä</span>
+                    <span style={{ color: '#aaa' }}>Total</span>
                     <span style={{ color: '#ffe066' }}>{cartCost} IPC</span>
                   </div>
                 </div>
@@ -271,7 +271,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                 opacity: (cartCount > 0 && selectedFactory && remaining >= 0) ? 1 : 0.5,
               }}
             >
-              ✓ Vahvista ostokset
+              ✓ CONFIRM PURCHASE
             </button>
           </div>
         </div>

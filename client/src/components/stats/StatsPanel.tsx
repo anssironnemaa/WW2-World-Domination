@@ -8,11 +8,11 @@ const NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'I
 type Metric = { key: keyof NationStat; label: string; hint: string }
 const METRICS: Metric[] = [
   { key: 'ipc', label: 'Treasury (IPC)', hint: 'War chest available to spend' },
-  { key: 'income', label: 'Production / round', hint: 'Territory income each round' },
+  { key: 'income', label: 'Production / turn', hint: 'Territory income each turn' },
   { key: 'territories', label: 'Territories held', hint: 'Land controlled' },
   { key: 'vcs', label: 'Victory Cities', hint: 'Progress to victory (7 solo / 9 allied)' },
   { key: 'units', label: 'Army size', hint: 'Total units on the map' },
-  { key: 'losses', label: 'Losses / round', hint: 'Units destroyed in battle' },
+  { key: 'losses', label: 'Losses / turn', hint: 'Units destroyed in battle' },
 ]
 
 export function StatsPanel({ onClose }: { onClose: () => void }) {
@@ -33,7 +33,7 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid #222' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>📊 WAR STATISTICS</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {history.length} ROUND{history.length === 1 ? '' : 'S'} RECORDED</div>
+          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {history.length} TURN{history.length === 1 ? '' : 'S'} RECORDED</div>
         </div>
         <button onClick={onClose} style={{
           background: 'none', border: '1px solid #444', borderRadius: 4, color: '#ccc',
@@ -64,7 +64,7 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
 
         {history.length < 1 ? (
           <div style={{ color: '#667', fontSize: 12, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>
-            No completed rounds yet — statistics appear after the first income phase.
+            No turns completed yet — statistics appear after the first income phase.
           </div>
         ) : (
           <>

@@ -3,8 +3,8 @@
 // Artillery: each gun raises one infantry's attack from 1 to 2.
 // Submarine first strike unless the enemy fleet contains a destroyer.
 // Transports die automatically to the first hit if unescorted, and never roll.
-import { UNIT_TYPES } from '../data/units'
-import type { Nation } from '../data/types'
+import { UNIT_TYPES, unitName } from '../data/units'
+import type { Nation, TechLevels } from '../data/types'
 
 export type Force = Record<string, number> // unitId -> count
 
@@ -20,6 +20,8 @@ export type BattleResult = {
   zoneName: string
   attacker: Nation
   defender: Nation
+  attackerInitial: Force   // forces committed at the start
+  defenderInitial: Force
   rounds: BattleRound[]
   attackerRemaining: Force
   defenderRemaining: Force
@@ -37,8 +39,9 @@ function combatUnits(f: Force): number {
   return Object.entries(f).reduce((s, [uid, n]) => s + (uid === 'transport' ? 0 : n), 0)
 }
 
-// Roll for one side. `side` picks attack vs defend values.
-function rollHits(force: Force, side: 'attack' | 'defend', log: string[], label: string): number {
+// Roll for one side. `side` picks attack vs defend values. `navalTech` applies
+// the advanced-submarine upgrade (attack on a 3).
+function rollHits(force: Force, side: 'attack' | 'defend', log: string[], label: string, navalTech = 0): number {
   let hits = 0
   // Artillery support: each artillery boosts one infantry from 1 to 2 (attack only)
   const artillery = force['artillery'] ?? 0
@@ -53,6 +56,7 @@ function rollHits(force: Force, side: 'attack' | 'defend', log: string[], label:
         target = 2
         boostedInf--
       }
+      if (uid === 'submarine' && side === 'attack' && navalTech >= 2) target = 3 // advanced subs
       if (target <= 0) continue
       const roll = d6()
       if (roll <= target) hits++
@@ -99,36 +103,47 @@ export function resolveBattle(
   defender: Nation,
   defenderForce: Force,
   maxRounds = 10,
+  tech: { atk?: TechLevels; def?: TechLevels } = {},
 ): BattleResult {
   const atk: Force = { ...attackerForce }
   const def: Force = { ...defenderForce }
+  const atkNaval = tech.atk?.naval ?? 0, defNaval = tech.def?.naval ?? 0
   const rounds: BattleRound[] = []
   const log: string[] = [`Battle for ${zoneName}: ${attacker} attacks ${defender}`]
 
   // Submarine first strike (before round 1) if the other side has no destroyer
-  const subStrike = (force: Force, enemy: Force, label: string) => {
+  const subStrike = (force: Force, enemy: Force, label: string, navalTech: number) => {
     const subs = force['submarine'] ?? 0
     if (subs === 0 || (enemy['destroyer'] ?? 0) > 0) return
+    const subAttack = navalTech >= 2 ? 3 : UNIT_TYPES['submarine'].attack
     let hits = 0
-    for (let i = 0; i < subs; i++) if (d6() <= UNIT_TYPES['submarine'].attack) hits++
+    for (let i = 0; i < subs; i++) if (d6() <= subAttack) hits++
     if (hits > 0) {
       log.push(`${label} submarine first strike: ${hits} hit${hits === 1 ? '' : 's'}`)
       applyCasualties(enemy, hits)
     }
   }
-  subStrike(atk, def, attacker)
-  subStrike(def, atk, defender)
+  subStrike(atk, def, attacker, atkNaval)
+  subStrike(def, atk, defender, defNaval)
+
+  // Interceptors (air tech 2): defending fighters fire a first-strike volley
+  if ((tech.def?.air ?? 0) >= 2) {
+    const fighters = def['fighter'] ?? 0
+    let hits = 0
+    for (let i = 0; i < fighters; i++) if (d6() <= (UNIT_TYPES['fighter']?.defend ?? 4)) hits++
+    if (hits > 0) { log.push(`${defender} interceptors first strike: ${hits} hit${hits === 1 ? '' : 's'}`); applyCasualties(atk, hits) }
+  }
 
   for (let r = 1; r <= maxRounds; r++) {
     if (combatUnits(atk) === 0 || totalUnits(def) === 0) break
-    log.push(`— Round ${r} —`)
-    const aHits = rollHits(atk, 'attack', log, attacker)
-    const dHits = rollHits(def, 'defend', log, defender)
+    log.push(`— Exchange ${r} —`)
+    const aHits = rollHits(atk, 'attack', log, attacker, atkNaval)
+    const dHits = rollHits(def, 'defend', log, defender, defNaval)
     const defenderLosses = applyCasualties(def, aHits)
     const attackerLosses = applyCasualties(atk, dHits)
     rounds.push({ attackerHits: aHits, defenderHits: dHits, attackerLosses, defenderLosses })
-    for (const [uid, n] of Object.entries(defenderLosses)) log.push(`  ${defender} loses ${n}× ${UNIT_TYPES[uid]?.nameFI ?? uid}`)
-    for (const [uid, n] of Object.entries(attackerLosses)) log.push(`  ${attacker} loses ${n}× ${UNIT_TYPES[uid]?.nameFI ?? uid}`)
+    for (const [uid, n] of Object.entries(defenderLosses)) log.push(`  ${defender} loses ${n}× ${unitName(uid)}`)
+    for (const [uid, n] of Object.entries(attackerLosses)) log.push(`  ${attacker} loses ${n}× ${unitName(uid)}`)
   }
 
   const winner: BattleResult['winner'] =
@@ -141,5 +156,9 @@ export function resolveBattle(
     `Stalemate in ${zoneName} — attacker withdraws`
   )
 
-  return { zoneId, zoneName, attacker, defender, rounds, attackerRemaining: atk, defenderRemaining: def, winner, log }
+  return {
+    zoneId, zoneName, attacker, defender,
+    attackerInitial: { ...attackerForce }, defenderInitial: { ...defenderForce },
+    rounds, attackerRemaining: atk, defenderRemaining: def, winner, log,
+  }
 }

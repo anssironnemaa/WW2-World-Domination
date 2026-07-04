@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { requestChapter, type NarrativeResult } from '../../engine/narrative'
+import { SpeakButton } from '../common/SpeakButton'
 import { roundToDate } from '../../data/calendar'
-import { UNIT_TYPES } from '../../data/units'
+import { unitName } from '../../data/units'
 import type { Nation } from '../../data/types'
 
 const KIND_ICON: Record<string, string> = { conquest: '🗺️', battle: '⚔️', power: '📈', treaty: '🤝' }
@@ -23,7 +24,7 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
   const treaties = [
     ...game.alliances.map(a => ({ icon: '⚔️', label: `Alliance: ${a.parties.join(' & ')}`, sub: `since ${roundToDate(a.sinceRound).short}` })),
     ...game.pacts.map(p => ({ icon: '🕊️', label: `Non-aggression: ${p.parties.join(' & ')}`, sub: `until ${roundToDate(p.untilRound).short}` })),
-    ...game.mercenaries.map(m => ({ icon: '💰', label: `${m.hirer} hired ${UNIT_TYPES[m.unit]?.nameFI ?? m.unit} from ${m.owner}`, sub: `${m.ipc} IPC · ${roundToDate(m.round).short}` })),
+    ...game.mercenaries.map(m => ({ icon: '💰', label: `${m.hirer} hired ${unitName(m.unit)} from ${m.owner}`, sub: `${m.ipc} IPC · ${roundToDate(m.round).short}` })),
   ]
 
   const generate = async () => {
@@ -54,7 +55,10 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
             {story && story !== 'loading' ? (
               <div style={{ background: 'rgba(200,168,48,0.06)', border: '1px solid #2a2a2a', borderRadius: 6, padding: 16, fontSize: 14, lineHeight: 1.7, color: '#d8c98a' }}>
                 {story.text.split(/\n+/).map((p, i) => <p key={i} style={{ margin: i ? '10px 0 0' : 0 }}>{p}</p>)}
-                <div style={{ color: '#667', fontSize: 10, marginTop: 8, textAlign: 'right' }}>— {story.source === 'gemini' ? 'war chronicle' : 'field notes'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                  <SpeakButton text={story.text} label="📻 BROADCAST TO THE ROOM" />
+                  <span style={{ color: '#667', fontSize: 10 }}>— {story.source === 'gemini' ? 'war chronicle' : 'field notes'}</span>
+                </div>
               </div>
             ) : (
               <button onClick={generate} disabled={story === 'loading'} style={{

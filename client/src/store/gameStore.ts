@@ -8,6 +8,9 @@ import { resolveBattle, type BattleResult, type Force } from '../engine/combat'
 import { parseCommand } from '../engine/diplomacy'
 import { resolveEspionage } from '../engine/espionage'
 import { roundToDate } from '../data/calendar'
+import { TECH_COST, unitCostWithTech } from '../data/tech'
+import { evaluateMove } from '../engine/movement'
+import { writeSave, readSave } from '../engine/saves'
 
 const SPY_POINT_COST = 5
 const CODE_BREAKING_COST = 20
@@ -198,8 +201,12 @@ type GameStore = {
   // In-map secret order UI state
   orderingNation: Nation | null            // whose turn it is to issue secret orders
   pendingMove: PendingMove | null          // when set, the next zone click is the destination
+  moveMessage: string | null               // feedback after a move attempt (error or note)
 
-  initGame: (playerConfig: Record<Nation, { type: PlayerType; pin: string }>, aiDifficulty?: AiDifficulty) => void
+  initGame: (playerConfig: Record<Nation, { type: PlayerType; pin: string }>, aiDifficulty?: AiDifficulty, name?: string) => void
+  saveWar: (name: string) => string          // returns the save name used
+  loadWar: (id: string) => boolean
+  endWar: () => void                          // back to the lobby
   selectZone: (id: string | null) => void
   handleZoneClick: (id: string | null) => void   // routes to select or move-destination
   setOrderingNation: (n: Nation | null) => void
@@ -212,6 +219,8 @@ type GameStore = {
   removeOrder: (nation: Nation, orderId: string) => void
   lockOrders: (nation: Nation) => void
   confirmPurchase: (nation: Nation, cart: Record<string, number>, factoryId: string) => string | null
+  buyTech: (nation: Nation, branch: keyof import('../data/types').TechLevels) => string | null
+  noteStrategy: (nation: Nation, text: string) => void
   advancePhase: () => void
 
   applyDiplomacyCommand: (text: string) => string | null   // returns error or null
@@ -229,8 +238,9 @@ export const useGameStore = create<GameStore>()(
     nationColors: NATION_COLORS,
     orderingNation: null,
     pendingMove: null,
+    moveMessage: null,
 
-    initGame: (playerConfig, aiDifficulty = 'normal') => {
+    initGame: (playerConfig, aiDifficulty = 'normal', name = 'New War') => {
       const territories = initTerritories()
       const seaZones = initSeaZones()
       placeStartingUnits(territories, seaZones)
@@ -251,6 +261,7 @@ export const useGameStore = create<GameStore>()(
 
       set(state => {
         state.game = {
+          name,
           round: 1,
           phase: 'diplomacy',
           players: players as Record<Nation, Player>,
@@ -259,6 +270,7 @@ export const useGameStore = create<GameStore>()(
           productionQueues: {} as GameState['productionQueues'],
           activeNation: null,
           orders: {},
+          standingOrders: [],
           lockedNations: [],
           battleReports: [],
           incomeReport: {},
@@ -272,6 +284,7 @@ export const useGameStore = create<GameStore>()(
           winningParties: [],
           victoryType: null,
           chronicle: [],
+          strategicNotes: [],
           aiDifficulty,
           history: [],
           revealedArrows: [],
@@ -279,6 +292,23 @@ export const useGameStore = create<GameStore>()(
         }
       })
     },
+
+    saveWar: (name) => {
+      const g = get().game
+      if (g) { writeSave(name, g); set(state => { if (state.game) state.game.name = name.trim() }) }
+      return name.trim()
+    },
+
+    loadWar: (id) => {
+      const state = readSave(id)
+      if (!state) return false
+      set(s => { s.game = state; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null })
+      return true
+    },
+
+    endWar: () => set(s => {
+      s.game = null; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null
+    }),
 
     selectZone: (id) => set(state => { state.selectedZoneId = id }),
 
@@ -289,21 +319,39 @@ export const useGameStore = create<GameStore>()(
 
     beginMove: (source, picks) => set(state => {
       state.pendingMove = { source, picks }
+      state.moveMessage = null
     }),
 
     cancelMove: () => set(state => { state.pendingMove = null }),
 
     completeMove: (dest) => {
-      const { pendingMove, orderingNation, submitOrder } = get()
-      if (!pendingMove || !orderingNation) return 'No move in progress'
+      const { pendingMove, orderingNation, game, submitOrder } = get()
+      if (!pendingMove || !orderingNation || !game) return 'No move in progress'
       if (dest === pendingMove.source) { set(s => { s.pendingMove = null }); return null }
+
+      // Pre-evaluate for warnings (multi-turn march) and confirmation.
+      let anyMultiTurn = false
+      for (const [unit, count] of Object.entries(pendingMove.picks)) {
+        if (count <= 0) continue
+        const plan = evaluateMove(game, orderingNation, pendingMove.source, dest, unit)
+        if (plan.ok && plan.multiTurn) anyMultiTurn = true
+      }
+      if (anyMultiTurn && typeof window !== 'undefined') {
+        const proceed = window.confirm(
+          'This destination is farther than the units can march in one turn.\n\n' +
+          'Issue it as a STANDING ORDER? The units will keep advancing automatically each turn until they arrive — or press Cancel to pick a nearer zone.')
+        if (!proceed) { set(s => { s.pendingMove = null }); return null }
+      }
+
       let firstError: string | null = null
+      let ok = 0
       for (const [unit, count] of Object.entries(pendingMove.picks)) {
         if (count <= 0) continue
         const err = submitOrder({ nation: orderingNation, from: pendingMove.source, to: dest, unit, count })
         if (err && !firstError) firstError = err
+        else if (!err) ok++
       }
-      set(s => { s.pendingMove = null })
+      set(s => { s.pendingMove = null; s.moveMessage = firstError ?? (ok > 0 ? (anyMultiTurn ? 'Standing order issued — units will march over several turns.' : null) : null) })
       return firstError
     },
 
@@ -346,17 +394,26 @@ export const useGameStore = create<GameStore>()(
         .filter(o => o.from === order.from && o.unit === order.unit)
         .reduce((s, o) => s + o.count, 0)
       if (available - committed < order.count) return `Only ${available - committed} available`
-      if (order.from === order.to) return 'Source and target are the same'
-      if (!game.territories[order.to] && !game.seaZones[order.to]) return 'Unknown target zone'
-      const isSeaTarget = !!game.seaZones[order.to]
-      const cat = UNIT_TYPES[order.unit]?.category
-      if (isSeaTarget && (cat === 'infantry' || cat === 'armor')) return 'Land units need a transport — target a land zone'
-      if (!isSeaTarget && cat === 'navy') return 'Naval units cannot enter land'
+
+      // Validate against the adjacency graph: range, sea crossings, carriers.
+      const plan = evaluateMove(game, order.nation, order.from, order.to, order.unit)
+      const isHuman = game.players[order.nation]?.type === 'human'
+      // Humans must obey the rules; the AI is granted logistical leniency so it is
+      // never crippled by transport micromanagement (its units move directly).
+      if (!plan.ok && isHuman) return plan.reason ?? 'Illegal move'
+      const usePlan = plan.ok
 
       set(state => {
         const g = state.game!
         if (!g.orders[order.nation]) g.orders[order.nation] = []
-        g.orders[order.nation]!.push({ ...order, id: `${order.nation}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` })
+        g.orders[order.nation]!.push({
+          ...order,
+          id: `${order.nation}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          path: usePlan ? plan.path : [order.from, order.to],
+          standing: usePlan ? plan.multiTurn : false,
+          needsTransport: usePlan ? plan.needsTransport : false,
+          transportZone: usePlan ? plan.transportZone : undefined,
+        })
       })
       return null
     },
@@ -376,7 +433,7 @@ export const useGameStore = create<GameStore>()(
       const { game } = get()
       if (!game) return 'No game'
       const player = game.players[nation]
-      const cost = Object.entries(cart).reduce((s, [uid, n]) => s + (UNIT_TYPES[uid]?.cost ?? 0) * n, 0)
+      const cost = Object.entries(cart).reduce((s, [uid, n]) => s + unitCostWithTech(uid, player.techLevels) * n, 0)
       if (cost > player.ipc) return 'Not enough IPC'
       const factory = game.territories[factoryId]
       if (!factory || !factory.hasFactory || factory.owner !== nation) return 'Invalid factory'
@@ -391,6 +448,25 @@ export const useGameStore = create<GameStore>()(
             turnsRemaining: UNIT_TYPES[uid]?.buildTime ?? 1,
           })
         }
+      })
+      return null
+    },
+
+    noteStrategy: (nation, text) => set(state => {
+      const g = state.game
+      if (g && text) g.strategicNotes.push({ round: g.round, nation, text })
+    }),
+
+    buyTech: (nation, branch) => {
+      const { game } = get()
+      if (!game) return 'No game'
+      const player = game.players[nation]
+      if (player.techLevels[branch] >= 3) return 'Already at maximum level'
+      if (player.ipc < TECH_COST) return `Research costs ${TECH_COST} IPC`
+      set(state => {
+        const p = state.game!.players[nation]
+        p.ipc -= TECH_COST
+        p.techLevels[branch] += 1
       })
       return null
     },
@@ -477,41 +553,55 @@ export const useGameStore = create<GameStore>()(
       if (!g) return
       const idx = PHASE_ORDER.indexOf(g.phase)
       const next = PHASE_ORDER[(idx + 1) % PHASE_ORDER.length]
+      // Zones each nation actually advanced INTO this turn (attackers for combat)
+      const moverStops = new Set<string>()
 
       // ── Entering reveal → resolve espionage, snapshot arrows for the map ──
       if (next === 'reveal') {
         g.spyReports = resolveEspionage(g.round, g.spyOrders, g.orders, g.players)
         // Persist the revealed movements so the arrows stay on the map (through the
         // rest of this round and the next round's planning) until the NEXT reveal.
-        g.revealedArrows = (Object.values(g.orders).flat().filter(Boolean) as MoveOrder[]).map(o => ({ ...o }))
+        g.revealedArrows = [
+          ...(Object.values(g.orders).flat().filter(Boolean) as MoveOrder[]),
+          ...g.standingOrders,
+        ].map(o => ({ ...o }))
         g.revealedBattles = []
       }
 
-      // ── Leaving reveal → apply all movements ─────────────────────────────
+      // ── Leaving reveal → advance all movements along their paths ──────────
+      // Units travel up to their range per turn; over-range marches persist as
+      // standing orders and continue automatically next turn.
       if (g.phase === 'reveal') {
-        for (const orders of Object.values(g.orders)) {
-          for (const o of orders ?? []) {
-            const from = g.territories[o.from] ?? g.seaZones[o.from]
-            const to = g.territories[o.to] ?? g.seaZones[o.to]
-            if (!from || !to) continue
-            const have = from.units[o.nation]?.[o.unit] ?? 0
-            const moving = Math.min(have, o.count)
-            if (moving <= 0) continue
-            from.units[o.nation]![o.unit] -= moving
-            if (from.units[o.nation]![o.unit] <= 0) delete from.units[o.nation]![o.unit]
-            if (!to.units[o.nation]) to.units[o.nation] = {}
-            to.units[o.nation]![o.unit] = (to.units[o.nation]![o.unit] ?? 0) + moving
-          }
+        const active: MoveOrder[] = [
+          ...(Object.values(g.orders).flat().filter(Boolean) as MoveOrder[]),
+          ...g.standingOrders,
+        ]
+        const continuations: MoveOrder[] = []
+        for (const o of active) {
+          const path = o.path && o.path.length > 1 ? o.path : [o.from, o.to]
+          const range = o.needsTransport ? path.length - 1 : (UNIT_TYPES[o.unit]?.move ?? 1)
+          const steps = Math.max(1, Math.min(range, path.length - 1))
+          const dest = path[steps]
+          const from = g.territories[path[0]] ?? g.seaZones[path[0]]
+          const to = g.territories[dest] ?? g.seaZones[dest]
+          if (!from || !to) continue
+          const have = from.units[o.nation]?.[o.unit] ?? 0
+          const moving = Math.min(have, o.count)
+          if (moving <= 0) continue
+          from.units[o.nation]![o.unit] -= moving
+          if (from.units[o.nation]![o.unit]! <= 0) delete from.units[o.nation]![o.unit]
+          if (!to.units[o.nation]) to.units[o.nation] = {}
+          to.units[o.nation]![o.unit] = (to.units[o.nation]![o.unit] ?? 0) + moving
+          moverStops.add(`${o.nation}:${dest}`)
+          if (dest !== o.to) continuations.push({ ...o, from: dest, path: path.slice(steps), count: moving })
         }
+        g.standingOrders = continuations
       }
 
       // ── Entering battle → resolve every contested zone ───────────────────
       if (next === 'battle') {
         g.battleReports = []
-        const movers = new Set<string>() // "nation:zoneId" pairs that moved in this round
-        for (const orders of Object.values(g.orders)) {
-          for (const o of orders ?? []) movers.add(`${o.nation}:${o.to}`)
-        }
+        const movers = moverStops // zones each nation actually advanced into this turn
 
         const allZones: (Territory | SeaZone)[] = [...Object.values(g.territories), ...Object.values(g.seaZones)]
         for (const zone of allZones) {
@@ -546,6 +636,7 @@ export const useGameStore = create<GameStore>()(
               (zone as Territory).owner = attacker
               g.battleReports.push({
                 zoneId: zone.id, zoneName: zone.nameEN, attacker, defender,
+                attackerInitial: { ...attackerForce }, defenderInitial: {},
                 rounds: [], attackerRemaining: attackerForce, defenderRemaining: {},
                 winner: 'attacker', log: [`${attacker} occupies ${zone.nameEN} unopposed`],
               } as BattleResult)
@@ -557,7 +648,10 @@ export const useGameStore = create<GameStore>()(
             continue
           }
 
-          const result = resolveBattle(zone.id, zone.nameEN, attacker, attackerForce, defender, defenderForce)
+          const result = resolveBattle(
+            zone.id, zone.nameEN, attacker, attackerForce, defender, defenderForce, 10,
+            { atk: g.players[attacker]?.techLevels, def: g.players[defender]?.techLevels },
+          )
           g.battleReports.push(result)
 
           // Apply outcome to zone
@@ -565,14 +659,20 @@ export const useGameStore = create<GameStore>()(
           if (defender !== 'Neutral' || !isLand) {
             zone.units[defender] = { ...result.defenderRemaining }
           }
+          const sum = (f: Record<string, number>) => Object.values(f).reduce((s, n) => s + n, 0)
+          const aLost = sum(result.attackerInitial) - sum(result.attackerRemaining)
+          const dLost = sum(result.defenderInitial) - sum(result.defenderRemaining)
+          const casualties = `(${attacker} lost ${aLost}, ${defender} lost ${dLost})`
           if (result.winner === 'attacker' && isLand && hasLandUnits(result.attackerRemaining)) {
             (zone as Territory).owner = attacker
             g.chronicle.push({
               round: g.round, kind: 'conquest',
-              text: `${attacker} captured ${zone.nameEN}${(zone as Territory).isVC ? ` (Victory City ${(zone as Territory).vcName})` : ''} from ${defender}`,
+              text: `${attacker} took ${zone.nameEN}${(zone as Territory).isVC ? ` (Victory City ${(zone as Territory).vcName})` : ''} from ${defender} ${casualties}`,
             })
           } else if (result.winner === 'defender') {
-            g.chronicle.push({ round: g.round, kind: 'battle', text: `${defender} repelled ${attacker} at ${zone.nameEN}` })
+            g.chronicle.push({ round: g.round, kind: 'battle', text: `${defender} repelled ${attacker}'s assault on ${zone.nameEN} ${casualties}` })
+          } else {
+            g.chronicle.push({ round: g.round, kind: 'battle', text: `${attacker}'s attack on ${zone.nameEN} stalled ${casualties}` })
           }
         }
         // Territory ownership may have changed — evaluate victory conditions.
@@ -637,7 +737,22 @@ export const useGameStore = create<GameStore>()(
         }
         const ownership: Record<string, Nation> = {}
         for (const t of Object.values(g.territories)) ownership[t.id] = t.owner
-        g.history.push({ round: g.round, perNation, ownership })
+        // Per-zone force totals (for the war-room troop badges)
+        const forces: Record<string, Partial<Record<Nation, number>>> = {}
+        for (const z of allZones) {
+          const per: Partial<Record<Nation, number>> = {}
+          for (const [nat, u] of Object.entries(z.units)) {
+            const tot = Object.values(u ?? {}).reduce((s, c) => s + c, 0)
+            if (tot > 0) per[nat as Nation] = tot
+          }
+          if (Object.keys(per).length) forces[z.id] = per
+        }
+        g.history.push({
+          round: g.round, perNation, ownership,
+          arrows: g.revealedArrows.map(o => ({ ...o })),
+          battles: g.revealedBattles.map(b => ({ ...b })),
+          forces,
+        })
 
         // Advance production queues; deploy finished units at their factory
         for (const [nationStr, queue] of Object.entries(g.productionQueues)) {

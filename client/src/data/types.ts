@@ -94,10 +94,14 @@ export type Phase =
 export type MoveOrder = {
   id: string
   nation: Nation
-  from: string   // zone id
-  to: string     // zone id
+  from: string   // zone id (current position; advances each turn for standing orders)
+  to: string     // final destination zone id
   unit: string   // unit type id
   count: number
+  path?: string[]         // full route incl. endpoints
+  standing?: boolean      // multi-turn march still en route
+  needsTransport?: boolean
+  transportZone?: string  // sea zone the crossing loads through
 }
 
 // ── Diplomacy ─────────────────────────────────────────────────────────────────
@@ -151,6 +155,9 @@ export type RoundSnapshot = {
   round: number
   perNation: Partial<Record<Nation, NationStat>>
   ownership: Record<string, Nation>   // territory id → owner, for the war-room front map
+  arrows: MoveOrder[]                  // this round's movements
+  battles: { zoneId: string; winner: 'attacker' | 'defender' | 'draw' }[]
+  forces: Record<string, Partial<Record<Nation, number>>>  // zone → nation → total units
 }
 
 // ── Espionage ─────────────────────────────────────────────────────────────────
@@ -170,6 +177,7 @@ export type SpyReport = {
 }
 
 export type GameState = {
+  name: string
   round: number
   phase: Phase
   players: Record<Nation, Player>
@@ -178,6 +186,7 @@ export type GameState = {
   productionQueues: Record<Nation, ProductionQueueItem[]>
   activeNation: Nation | null
   orders: Partial<Record<Nation, MoveOrder[]>>
+  standingOrders: MoveOrder[]        // multi-turn marches still en route
   lockedNations: Nation[]
   battleReports: import('../engine/combat').BattleResult[]
   incomeReport: Partial<Record<Nation, number>>
@@ -195,6 +204,7 @@ export type GameState = {
   victoryType: 'solo' | 'alliance' | null
   // War history
   chronicle: ChronicleEntry[]
+  strategicNotes: { round: number; nation: Nation; text: string }[]  // AI stated intentions
   aiDifficulty: AiDifficulty
   // Statistics — one snapshot per completed round
   history: RoundSnapshot[]

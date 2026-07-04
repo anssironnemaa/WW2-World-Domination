@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
-import { UNIT_TYPES } from '../../data/units'
+import { unitName } from '../../data/units'
 import { requestAiMove, type AiResult } from '../../engine/ai'
 import { requestBulletin, requestBattleNarration, type NarrativeResult } from '../../engine/narrative'
+import { SpeakButton } from '../common/SpeakButton'
 import { roundToDate } from '../../data/calendar'
 import type { Nation } from '../../data/types'
 
@@ -184,7 +185,7 @@ function OrdersEditor() {
               <select value={unit} onChange={e => setUnit(e.target.value)} style={{ ...selStyle, flex: 1 }}>
                 <option value="">Unit…</option>
                 {sourceUnits.map(([uid, n]) =>
-                  <option key={uid} value={uid}>{UNIT_TYPES[uid]?.nameFI ?? uid} ({n})</option>)}
+                  <option key={uid} value={uid}>{unitName(uid)} ({n})</option>)}
               </select>
               <input
                 type="number" min={1} value={count}
@@ -217,7 +218,7 @@ function OrdersEditor() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   fontSize: 11, marginBottom: 3, color: '#ccc',
                 }}>
-                  <span>{o.count}× {UNIT_TYPES[o.unit]?.nameFI ?? o.unit}: {zoneName(o.from)} → {zoneName(o.to)}</span>
+                  <span>{o.count}× {unitName(o.unit)}: {zoneName(o.from)} → {zoneName(o.to)}</span>
                   <button onClick={() => removeOrder(nation, o.id)} style={{
                     background: 'none', border: 'none', color: '#e05050', cursor: 'pointer', fontSize: 12,
                   }}>✕</button>
@@ -247,7 +248,7 @@ function RevealTable() {
     .filter(([, orders]) => (orders?.length ?? 0) > 0)
 
   if (entries.length === 0) {
-    return <div style={{ color: '#888', fontSize: 11 }}>No orders were issued this round.</div>
+    return <div style={{ color: '#888', fontSize: 11 }}>No orders were issued this turn.</div>
   }
   return (
     <>
@@ -259,7 +260,7 @@ function RevealTable() {
           }}>{nation.toUpperCase()}</div>
           {(orders ?? []).map(o => (
             <div key={o.id} style={{ fontSize: 11, color: '#ccc', marginBottom: 2 }}>
-              {o.count}× {UNIT_TYPES[o.unit]?.nameFI ?? o.unit}: {zoneName(o.from)} → {zoneName(o.to)}
+              {o.count}× {unitName(o.unit)}: {zoneName(o.from)} → {zoneName(o.to)}
             </div>
           ))}
         </div>
@@ -288,7 +289,7 @@ function BattleReports() {
   }
 
   if (game.battleReports.length === 0) {
-    return <div style={{ color: '#888', fontSize: 11 }}>No battles this round.</div>
+    return <div style={{ color: '#888', fontSize: 11 }}>No battles this turn.</div>
   }
   return (
     <>
@@ -311,6 +312,13 @@ function BattleReports() {
                 {b.winner === 'attacker' ? `${b.attacker} WINS` : b.winner === 'defender' ? `${b.defender} HOLDS` : 'DRAW'}
               </span>
             </div>
+
+            {/* Forces engaged + losses per side */}
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <BattleSide role="Attacker" nation={b.attacker} initial={b.attackerInitial} remaining={b.attackerRemaining} />
+              <BattleSide role="Defender" nation={b.defender} initial={b.defenderInitial} remaining={b.defenderRemaining} />
+            </div>
+
             {expanded === b.zoneId && (
               <div style={{ marginTop: 6, fontSize: 10, color: '#999', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                 {b.log.join('\n')}
@@ -338,6 +346,38 @@ function BattleReports() {
         )
       })}
     </>
+  )
+}
+
+// One side of a battle: forces engaged and losses per unit type.
+function BattleSide({ role, nation, initial, remaining }: {
+  role: string; nation: Nation; initial: Record<string, number>; remaining: Record<string, number>
+}) {
+  const units = Object.entries(initial).filter(([, n]) => n > 0)
+  const totalInit = units.reduce((s, [, n]) => s + n, 0)
+  const totalLost = units.reduce((s, [uid, n]) => s + Math.max(0, n - (remaining[uid] ?? 0)), 0)
+  return (
+    <div style={{ fontSize: 10, lineHeight: 1.5 }}>
+      <span style={{ color: NATION_COLORS[nation], fontWeight: 'bold' }}>{nation}</span>
+      <span style={{ color: '#555' }}> ({role}) </span>
+      {totalInit === 0 ? (
+        <span style={{ color: '#666' }}>—</span>
+      ) : (
+        <>
+          {units.map(([uid, n], i) => {
+            const lost = Math.max(0, n - (remaining[uid] ?? 0))
+            const short = unitName(uid).slice(0, 4)
+            return (
+              <span key={uid} style={{ color: '#bbb' }}>
+                {i > 0 ? ' · ' : ''}{n} {short}
+                {lost > 0 && <span style={{ color: '#e06666' }}> −{lost}</span>}
+              </span>
+            )
+          })}
+          <span style={{ color: '#666' }}> · lost {totalLost}/{totalInit}</span>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -386,12 +426,15 @@ function IncomeSummary() {
             <span style={{ fontStyle: 'normal', color: '#666', fontSize: 8 }}> — {bulletin.source === 'gemini' ? 'World Service' : 'field wire'}</span>
           </div>
         )}
+        {bulletin && bulletin !== 'loading' && (
+          <div style={{ marginBottom: 6 }}><SpeakButton text={bulletin.text} label="📻 BROADCAST" style={{ width: '100%', padding: '5px 0' }} /></div>
+        )}
         <button onClick={generate} disabled={bulletin === 'loading'} style={{
           width: '100%', padding: '5px 0', borderRadius: 3, border: '1px solid #333',
           background: 'none', color: bulletin === 'loading' ? '#666' : '#c8a830',
           fontSize: 10, cursor: bulletin === 'loading' ? 'default' : 'pointer',
         }}>
-          {bulletin === 'loading' ? 'BROADCASTING…' : bulletin ? 'REGENERATE BULLETIN' : 'GENERATE ROUND BULLETIN'}
+          {bulletin === 'loading' ? 'BROADCASTING…' : bulletin ? 'REGENERATE BULLETIN' : '📻 GENERATE NEWS BULLETIN'}
         </button>
       </div>
     </>
@@ -421,8 +464,8 @@ function DiplomacyConsole() {
 
   const active = [
     ...game.alliances.map(a => `⚔ ${a.parties.join(' + ')}`),
-    ...game.pacts.map(p => `🕊 ${p.parties.join(' + ')} (until R${p.untilRound})`),
-    ...game.mercenaries.map(m => `💰 ${m.hirer}←${m.owner} ${UNIT_TYPES[m.unit]?.nameFI ?? m.unit}`),
+    ...game.pacts.map(p => `🕊 ${p.parties.join(' + ')} (until ${roundToDate(p.untilRound).short})`),
+    ...game.mercenaries.map(m => `💰 ${m.hirer}←${m.owner} ${unitName(m.unit)}`),
   ]
 
   return (
@@ -461,7 +504,7 @@ function DiplomacyConsole() {
       {game.diplomacyLog.length > 0 && (
         <div style={{ borderTop: '1px solid #1e1e1e', paddingTop: 6, maxHeight: 90, overflowY: 'auto' }}>
           {game.diplomacyLog.slice().reverse().map((e, i) => (
-            <div key={i} style={{ fontSize: 10, color: '#777' }}>R{e.round}: {e.text}</div>
+            <div key={i} style={{ fontSize: 10, color: '#777' }}>{roundToDate(e.round).short}: {e.text}</div>
           ))}
         </div>
       )}
@@ -565,7 +608,7 @@ function SpyReportsView() {
             <div style={{ marginTop: 4, paddingLeft: 6, borderLeft: '1px solid #333' }}>
               {r.revealedOrders.map(o => (
                 <div key={o.id} style={{ fontSize: 10, color: '#c8a830' }}>
-                  {o.count}× {UNIT_TYPES[o.unit]?.nameFI ?? o.unit}: {zoneName(o.from)} → {zoneName(o.to)}
+                  {o.count}× {unitName(o.unit)}: {zoneName(o.from)} → {zoneName(o.to)}
                 </div>
               ))}
             </div>
@@ -580,9 +623,16 @@ function SpyReportsView() {
 }
 
 // ── AI control (orders phase) ─────────────────────────────────────────────────
+const EMPTY_AI: AiResult = { moves: [], purchases: [], spyOrders: [], diplomacy: [], research: null, reasoning: '', source: 'mock' }
+
 function AiControl() {
   const submitOrder = useGameStore(s => s.submitOrder)
   const lockOrders = useGameStore(s => s.lockOrders)
+  const confirmPurchase = useGameStore(s => s.confirmPurchase)
+  const applyDiplomacyCommand = useGameStore(s => s.applyDiplomacyCommand)
+  const submitSpyOrder = useGameStore(s => s.submitSpyOrder)
+  const buyTech = useGameStore(s => s.buyTech)
+  const noteStrategy = useGameStore(s => s.noteStrategy)
   const game = useGameStore(s => s.game)!
   const [running, setRunning] = useState(false)
   const [results, setResults] = useState<{ nation: Nation; res: AiResult; err?: string }[]>([])
@@ -594,19 +644,23 @@ function AiControl() {
 
   const run = async () => {
     setRunning(true)
-    // Fire every AI nation's request concurrently, then apply results in order so
-    // "THINKING…" time is bounded by the slowest call, not the sum of all calls.
     const snapshot = useGameStore.getState().game!
     const settled = await Promise.all(pending.map(async (nation): Promise<{ nation: Nation; res: AiResult; err?: string }> => {
       try {
         return { nation, res: await requestAiMove(snapshot, nation, snapshot.aiDifficulty) }
       } catch (e) {
-        return { nation, res: { moves: [], reasoning: '', source: 'mock' }, err: e instanceof Error ? e.message : String(e) }
+        return { nation, res: EMPTY_AI, err: e instanceof Error ? e.message : String(e) }
       }
     }))
+    // Apply each AI nation's full plan through the same validated actions a human uses.
     for (const { nation, res, err } of settled) {
       if (err) continue
+      if (res.research) buyTech(nation, res.research as 'land' | 'air' | 'naval' | 'industry')
+      for (const p of res.purchases) confirmPurchase(nation, { [p.unit]: p.count }, p.factory)
+      for (const cmd of res.diplomacy) applyDiplomacyCommand(cmd)
+      for (const s of res.spyOrders) submitSpyOrder(nation, s.target as Nation, s.points)
       for (const m of res.moves) submitOrder({ nation, from: m.from, to: m.to, unit: m.unit, count: m.count })
+      if (res.reasoning) noteStrategy(nation, res.reasoning)
       lockOrders(nation)
     }
     setResults(settled)
@@ -639,12 +693,22 @@ function AiControl() {
           </div>
           {err
             ? <div style={{ fontSize: 10, color: '#e05050' }}>{err}</div>
-            : <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>{res.reasoning}</div>}
-          {res.moves.map((m, i) => (
-            <div key={i} style={{ fontSize: 10, color: '#bbb' }}>
-              {m.count}× {UNIT_TYPES[m.unit]?.nameFI ?? m.unit}: {zoneName(m.from)} → {zoneName(m.to)}
+            : <div style={{ fontSize: 10, color: '#999', marginTop: 2, fontStyle: 'italic' }}>{res.reasoning}</div>}
+          {!err && (
+            <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {res.research && <div style={{ fontSize: 10, color: '#8fdc8f' }}>🔬 researches {res.research}</div>}
+              {res.purchases.length > 0 && (
+                <div style={{ fontSize: 10, color: '#c8b060' }}>🛒 buys {res.purchases.map(p => `${p.count} ${unitName(p.unit)}`).join(', ')}</div>
+              )}
+              {res.diplomacy.map((d, i) => <div key={i} style={{ fontSize: 10, color: '#c8a0e0' }}>🤝 {d.replace(/[[\]]/g, '')}</div>)}
+              {res.spyOrders.map((s, i) => <div key={i} style={{ fontSize: 10, color: '#e0a0a0' }}>🕵 spies on {s.target} ({s.points}pt)</div>)}
+              {res.moves.map((m, i) => (
+                <div key={i} style={{ fontSize: 10, color: '#bbb' }}>
+                  ⇒ {m.count}× {unitName(m.unit)}: {zoneName(m.from)} → {zoneName(m.to)}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       ))}
     </div>

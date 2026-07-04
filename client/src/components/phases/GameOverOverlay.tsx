@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { requestHistory, type NarrativeResult } from '../../engine/narrative'
+import { SpeakButton } from '../common/SpeakButton'
 import { roundToDate } from '../../data/calendar'
 
 // Full-screen victory screen. Auto-generates the full AI-written war history
@@ -62,10 +63,13 @@ export function GameOverOverlay() {
                 — {doc.source === 'gemini' ? 'official war history' : 'archival summary'}</div></>}
         </div>
 
-        <button onClick={() => window.location.reload()} style={{
-          marginTop: 26, padding: '10px 28px', borderRadius: 4, border: 'none',
-          background: color, color: '#0d0d0d', fontWeight: 'bold', fontSize: 12, letterSpacing: 1, cursor: 'pointer',
-        }}>▶ NEW WAR</button>
+        <div style={{ marginTop: 22, display: 'flex', gap: 10, justifyContent: 'center' }}>
+          {doc && doc !== 'loading' && <SpeakButton text={doc.text} label="📻 BROADCAST THE HISTORY" />}
+          <button onClick={() => window.location.reload()} style={{
+            padding: '10px 28px', borderRadius: 4, border: 'none',
+            background: color, color: '#0d0d0d', fontWeight: 'bold', fontSize: 12, letterSpacing: 1, cursor: 'pointer',
+          }}>▶ NEW WAR</button>
+        </div>
       </div>
     </div>
   )
