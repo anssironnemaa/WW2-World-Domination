@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { unitName } from '../../data/units'
 import { requestAiMove, type AiResult } from '../../engine/ai'
@@ -61,21 +61,35 @@ export function PhasePanel() {
             <div style={{ padding: '8px 10px', borderRadius: 3, background: 'rgba(58,91,122,0.15)', border: '1px solid #2a3b4a', color: '#8ab4d8', fontSize: 11, textAlign: 'center' }}>
               ⏳ The host advances the war. Lock your orders and the round proceeds when everyone is ready.
             </div>
-          ) : (
-            <button
-              onClick={advancePhase}
-              disabled={!allLocked && game.phase === 'orders'}
-              style={{
-                padding: '8px 0', border: 'none', borderRadius: 3,
-                background: (allLocked || game.phase !== 'orders') ? '#c8a830' : '#333',
-                color: (allLocked || game.phase !== 'orders') ? '#0d0d0d' : '#8f8f8f',
-                fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
-                cursor: (allLocked || game.phase !== 'orders') ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {game.phase === 'income' ? `▶ ADVANCE TO ${roundToDate(game.round + 1).short}` : '▶ NEXT PHASE'}
-            </button>
-          )}
+          ) : (() => {
+            // The online host may advance the war at any time (so a disconnected
+            // or unclaimed seat can never stall the game); local hotseat still
+            // waits for every human to lock.
+            const ready = allLocked || game.phase !== 'orders' || !!online
+            const lockedCount = humanNations.filter(n => game.lockedNations.includes(n)).length
+            return (
+              <>
+                {online && game.phase === 'orders' && !allLocked && (
+                  <div style={{ fontSize: 10, color: '#c8a830', textAlign: 'center' }}>
+                    {lockedCount}/{humanNations.length} powers locked — advance whenever you're ready.
+                  </div>
+                )}
+                <button
+                  onClick={advancePhase}
+                  disabled={!ready}
+                  style={{
+                    padding: '8px 0', border: 'none', borderRadius: 3,
+                    background: ready ? '#c8a830' : '#333',
+                    color: ready ? '#0d0d0d' : '#8f8f8f',
+                    fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
+                    cursor: ready ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {game.phase === 'income' ? `▶ ADVANCE TO ${roundToDate(game.round + 1).short}` : '▶ NEXT PHASE'}
+                </button>
+              </>
+            )
+          })()}
         </div>
       )}
     </div>
@@ -85,6 +99,7 @@ export function PhasePanel() {
 // ── Secret orders editor ──────────────────────────────────────────────────────
 function OrdersEditor() {
   const game = useGameStore(s => s.game)!
+  const online = useGameStore(s => s.online)
   const submitOrder = useGameStore(s => s.submitOrder)
   const removeOrder = useGameStore(s => s.removeOrder)
   const lockOrders = useGameStore(s => s.lockOrders)
@@ -99,7 +114,14 @@ function OrdersEditor() {
   const [count, setCount] = useState(1)
   const [to, setTo] = useState('')
 
-  const humanNations = NATIONS.filter(n => game.players[n]?.type === 'human')
+  // Online: you only ever command your OWN nation (already authenticated at
+  // join) — no picker, no PIN. Local hotseat: pick any human power + PIN.
+  const humanNations = online ? [online.nation] : NATIONS.filter(n => game.players[n]?.type === 'human')
+  useEffect(() => {
+    if (online && nation !== online.nation) {
+      setNation(online.nation); setPinOk(true); setError(''); setOrderingNation(online.nation)
+    }
+  }, [online, nation, setOrderingNation])
 
   // Zones where the active nation has units
   const sourceZones = useMemo(() => {
@@ -525,16 +547,18 @@ function DiplomacyConsole() {
 // ── Espionage panel (orders phase) ───────────────────────────────────────────
 function EspionagePanel() {
   const game = useGameStore(s => s.game)!
+  const online = useGameStore(s => s.online)
   const submitSpy = useGameStore(s => s.submitSpyOrder)
   const clearSpy = useGameStore(s => s.clearSpyOrders)
   const buyIntel = useGameStore(s => s.buyIntel)
 
-  const [spy, setSpy] = useState<Nation | ''>('')
+  const [spy, setSpy] = useState<Nation | ''>(online ? online.nation : '')
   const [target, setTarget] = useState<Nation | ''>('')
   const [points, setPoints] = useState(1)
   const [error, setError] = useState('')
 
-  const humanNations = NATIONS.filter(n => game.players[n]?.type === 'human')
+  // Online: only your own nation can run espionage from this device.
+  const humanNations = online ? [online.nation] : NATIONS.filter(n => game.players[n]?.type === 'human')
 
   const send = () => {
     if (!spy || !target) return

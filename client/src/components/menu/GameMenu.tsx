@@ -5,6 +5,7 @@ import { roundToDate } from '../../data/calendar'
 
 export function GameMenu() {
   const game = useGameStore(s => s.game)
+  const online = useGameStore(s => s.online)
   const saveWar = useGameStore(s => s.saveWar)
   const endWar = useGameStore(s => s.endWar)
   const [open, setOpen] = useState(false)
@@ -39,6 +40,19 @@ export function GameMenu() {
           boxShadow: '0 6px 24px rgba(0,0,0,0.7)', color: '#ddd',
         }}>
           <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1 }}>CURRENT WAR · {roundToDate(game.round).short}</div>
+
+          {online && (
+            <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 6, background: 'rgba(200,168,48,0.09)', border: '1px solid #5a4a20' }}>
+              <div style={{ fontSize: 10, color: '#c8a830', letterSpacing: 1 }}>ONLINE GAME CODE</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                <span style={{ fontSize: 24, fontWeight: 'bold', letterSpacing: 5, color: '#ffe066' }}>{online.code}</span>
+                <button onClick={() => navigator.clipboard?.writeText(online.code)} style={{ marginLeft: 'auto', fontSize: 10, padding: '4px 8px', borderRadius: 4, border: '1px solid #3a5b7a', background: 'rgba(58,91,122,0.2)', color: '#8ab4d8', cursor: 'pointer' }}>📋 COPY</button>
+              </div>
+              <div style={{ fontSize: 10, color: '#a8b6ca', marginTop: 5, lineHeight: 1.4 }}>
+                Share this so a dropped player can rejoin: open the game → JOIN WITH CODE → their nation + PIN. You are {online.nation} ({online.role}).
+              </div>
+            </div>
+          )}
 
           <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, margin: '12px 0 5px' }}>SAVE / RENAME</div>
           <div style={{ display: 'flex', gap: 6 }}>
