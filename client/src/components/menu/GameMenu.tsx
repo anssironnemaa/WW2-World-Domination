@@ -11,6 +11,7 @@ export function GameMenu() {
   const [name, setName] = useState(game?.name ?? 'War')
   const [saved, setSaved] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [confirmExit, setConfirmExit] = useState(false)
 
   useEffect(() => { if (game?.name) setName(game.name) }, [game?.name])
   if (!game) return null
@@ -21,6 +22,8 @@ export function GameMenu() {
   }
   const newSaving = () => { saveWar(name.trim() || 'Untitled War'); endWar() }
   const newDiscard = () => endWar()
+  const exitSaving = () => { saveWar(name.trim() || 'Untitled War'); endWar() }
+  const exitDiscard = () => endWar()
 
   return (
     <div style={{ position: 'relative' }}>
@@ -60,6 +63,20 @@ export function GameMenu() {
               <button onClick={newSaving} style={{ padding: '7px 0', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>💾 SAVE & START NEW</button>
               <button onClick={newDiscard} style={{ padding: '7px 0', borderRadius: 4, border: '1px solid #6a2020', background: 'rgba(120,30,30,0.2)', color: '#e0a0a0', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>🗑 DISCARD & START NEW</button>
               <button onClick={() => setConfirmNew(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>cancel</button>
+            </div>
+          )}
+
+          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, margin: '14px 0 5px' }}>START SCREEN</div>
+          {!confirmExit ? (
+            <button onClick={() => setConfirmExit(true)} style={{ width: '100%', padding: '8px 0', borderRadius: 4, border: '1px solid #3a5b7a', background: 'rgba(58,91,122,0.2)', color: '#8ab4d8', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>
+              ⌂ BACK TO START SCREEN
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, color: '#e0c070' }}>Save the current war before leaving?</div>
+              <button onClick={exitSaving} style={{ padding: '7px 0', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>💾 SAVE & EXIT</button>
+              <button onClick={exitDiscard} style={{ padding: '7px 0', borderRadius: 4, border: '1px solid #6a2020', background: 'rgba(120,30,30,0.2)', color: '#e0a0a0', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>🗑 EXIT WITHOUT SAVING</button>
+              <button onClick={() => setConfirmExit(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>cancel</button>
             </div>
           )}
         </div>

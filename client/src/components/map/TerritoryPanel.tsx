@@ -146,16 +146,24 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
   const [picks, setPicks] = useState<Record<string, number>>({})
 
   if (!game || game.phase !== 'orders' || !orderingNation) return null
-  if (owner !== orderingNation) {
+
+  const isSea = !!game.seaZones[zoneId]
+  const zone = game.territories[zoneId] ?? game.seaZones[zoneId]
+  const myUnits = Object.entries(zone?.units[orderingNation] ?? {}).filter(([, n]) => n > 0)
+
+  // Land zones are commanded by their owner; open-sea zones have no owner, so
+  // any power with a fleet stationed there may order those ships to move.
+  if (isSea) {
+    if (myUnits.length === 0) {
+      return <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>No fleet of yours in these waters.</div>
+    }
+  } else if (owner !== orderingNation) {
     return (
       <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>
         {owner ? `${owner} territory — not yours to command` : 'Inspect only'}
       </div>
     )
   }
-
-  const zone = game.territories[zoneId] ?? game.seaZones[zoneId]
-  const myUnits = Object.entries(zone?.units[orderingNation] ?? {}).filter(([, n]) => n > 0)
   // Units already committed to pending orders from this zone
   const committed: Record<string, number> = {}
   for (const o of game.orders[orderingNation] ?? []) {

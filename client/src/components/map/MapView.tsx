@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { TerritoryPanel } from './TerritoryPanel'
@@ -62,9 +62,12 @@ export function MapView() {
     handleZoneClick(target ? target.getAttribute('data-id') : null)
   }
 
-  // Ownership colors + selection highlight on the base map (fills only)
-  useEffect(() => {
-    const svg = mapRef.current?.querySelector('svg')
+  // Ownership colors + selection highlight on the base map (fills only).
+  // useLayoutEffect so the recolor is applied before the browser paints — this
+  // prevents a conquered territory from briefly flashing its original SVG fill
+  // when the map is (re)injected or a new phase re-renders the view.
+  useLayoutEffect(() => {
+    const svg = mapRef.current?.querySelector<SVGSVGElement>('#ww2-map')
     if (!game || !svg) return
     Object.values(game.territories).forEach(t => {
       const color = NATION_COLORS[t.owner] ?? NATION_COLORS['Neutral']

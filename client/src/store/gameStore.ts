@@ -5,7 +5,7 @@ import { TERRITORIES, SEA_ZONES } from '../data/territories'
 import { STARTING_FORCES } from '../data/starting'
 import { UNIT_TYPES } from '../data/units'
 import { resolveBattle, type BattleResult, type Force } from '../engine/combat'
-import { parseCommand } from '../engine/diplomacy'
+import { parseCommand, areAllied } from '../engine/diplomacy'
 import { resolveEspionage } from '../engine/espionage'
 import { roundToDate } from '../data/calendar'
 import { TECH_COST, unitCostWithTech } from '../data/tech'
@@ -231,6 +231,39 @@ type GameStore = {
 
 const DEFAULT_NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
 
+// Two nations are friendly if they share an alliance or an active non-aggression
+// pact. Friendly troops may pass through and share zones without fighting.
+function areFriendly(g: GameState, a: Nation, b: Nation): boolean {
+  if (a === b) return true
+  if (a === 'Neutral' || a === 'None' || b === 'Neutral' || b === 'None') return false
+  return g.alliances.some(al => al.parties.includes(a) && al.parties.includes(b))
+    || g.pacts.some(p => p.parties.includes(a) && p.parties.includes(b))
+}
+
+// Aggressor `a` attacks partner `b`: tear up any alliance or non-aggression pact
+// binding them the instant fighting erupts. In a multi-party alliance the
+// aggressor is expelled; a pact between them is dissolved outright.
+function breakRelations(g: GameState, a: Nation, b: Nation): void {
+  let broke = false
+  const before = g.pacts.length
+  g.pacts = g.pacts.filter(p => !(p.parties.includes(a) && p.parties.includes(b)))
+  if (g.pacts.length !== before) broke = true
+  const remaining: typeof g.alliances = []
+  for (const al of g.alliances) {
+    if (al.parties.includes(a) && al.parties.includes(b)) {
+      broke = true
+      const parties = al.parties.filter(p => p !== a)   // the aggressor is cast out
+      if (parties.length >= 2) remaining.push({ ...al, parties })
+    } else remaining.push(al)
+  }
+  g.alliances = remaining
+  if (broke) {
+    const text = `${a} broke the peace with ${b} — their alliance/non-aggression pact is torn up`
+    g.diplomacyLog.push({ round: g.round, text })
+    g.chronicle.push({ round: g.round, kind: 'treaty', text })
+  }
+}
+
 export const useGameStore = create<GameStore>()(
   immer((set, get) => ({
     game: null,
@@ -277,6 +310,7 @@ export const useGameStore = create<GameStore>()(
           alliances: [],
           pacts: [],
           mercenaries: [],
+          warRequests: [],
           diplomacyLog: [],
           spyOrders: [],
           spyReports: [],
@@ -302,6 +336,8 @@ export const useGameStore = create<GameStore>()(
     loadWar: (id) => {
       const state = readSave(id)
       if (!state) return false
+      // Back-fill fields added after older saves were written.
+      if (!state.warRequests) state.warRequests = []
       set(s => { s.game = state; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null })
       return true
     },
@@ -343,11 +379,30 @@ export const useGameStore = create<GameStore>()(
         if (!proceed) { set(s => { s.pendingMove = null }); return null }
       }
 
+      // Moving into an ally / non-aggression partner's zone: by default it's a
+      // peaceful passage (no battle). Offer to make it a deliberate attack.
+      let intent: 'attack' | 'move' | undefined
+      const destZone = game.territories[dest] ?? game.seaZones[dest]
+      const friends = new Set<Nation>()
+      if (destZone) {
+        const owner = destZone.type === 'land' ? (destZone as Territory).owner : null
+        if (owner && owner !== orderingNation && areFriendly(game, orderingNation, owner)) friends.add(owner)
+        for (const n of Object.keys(destZone.units) as Nation[])
+          if (n !== orderingNation && areFriendly(game, orderingNation, n)) friends.add(n)
+      }
+      if (friends.size > 0 && typeof window !== 'undefined') {
+        const who = [...friends].join(', ')
+        const attack = window.confirm(
+          `${who} is your ally / non-aggression partner and holds this zone.\n\n` +
+          'Press OK to ATTACK them here (this breaks the peace), or Cancel to move in peacefully — your troops will pass through / station alongside without fighting.')
+        intent = attack ? 'attack' : 'move'
+      }
+
       let firstError: string | null = null
       let ok = 0
       for (const [unit, count] of Object.entries(pendingMove.picks)) {
         if (count <= 0) continue
-        const err = submitOrder({ nation: orderingNation, from: pendingMove.source, to: dest, unit, count })
+        const err = submitOrder({ nation: orderingNation, from: pendingMove.source, to: dest, unit, count, intent })
         if (err && !firstError) firstError = err
         else if (!err) ok++
       }
@@ -396,12 +451,10 @@ export const useGameStore = create<GameStore>()(
       if (available - committed < order.count) return `Only ${available - committed} available`
 
       // Validate against the adjacency graph: range, sea crossings, carriers.
+      // Humans AND the AI obey the same rules — a land army may only cross open
+      // sea when a Transport bridges it, so the AI can't teleport invasions.
       const plan = evaluateMove(game, order.nation, order.from, order.to, order.unit)
-      const isHuman = game.players[order.nation]?.type === 'human'
-      // Humans must obey the rules; the AI is granted logistical leniency so it is
-      // never crippled by transport micromanagement (its units move directly).
-      if (!plan.ok && isHuman) return plan.reason ?? 'Illegal move'
-      const usePlan = plan.ok
+      if (!plan.ok) return plan.reason ?? 'Illegal move'
 
       set(state => {
         const g = state.game!
@@ -409,10 +462,11 @@ export const useGameStore = create<GameStore>()(
         g.orders[order.nation]!.push({
           ...order,
           id: `${order.nation}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          path: usePlan ? plan.path : [order.from, order.to],
-          standing: usePlan ? plan.multiTurn : false,
-          needsTransport: usePlan ? plan.needsTransport : false,
-          transportZone: usePlan ? plan.transportZone : undefined,
+          path: plan.path,
+          standing: plan.multiTurn,
+          needsTransport: plan.needsTransport,
+          transportZone: plan.transportZone,
+          intent: order.intent,
         })
       })
       return null
@@ -484,6 +538,8 @@ export const useGameStore = create<GameStore>()(
         return `${cmd.from} has only ${game.players[cmd.from].ipc} IPC`
       if (cmd.kind === 'MERCENARY' && game.players[cmd.hirer].ipc < cmd.ipc)
         return `${cmd.hirer} has only ${game.players[cmd.hirer].ipc} IPC`
+      if (cmd.kind === 'REQUEST' && !areAllied(game.alliances, cmd.from, cmd.ally))
+        return `${cmd.from} and ${cmd.ally} are not allied — form an alliance first`
 
       set(state => {
         const g = state.game!
@@ -503,6 +559,12 @@ export const useGameStore = create<GameStore>()(
           g.players[cmd.owner].ipc += cmd.ipc
           g.mercenaries.push({ id, ipc: cmd.ipc, unit: cmd.unit, owner: cmd.owner, hirer: cmd.hirer, round: g.round })
           g.diplomacyLog.push({ round: g.round, text: `${cmd.hirer} hires ${UNIT_TYPES[cmd.unit]?.nameFI ?? cmd.unit} from ${cmd.owner} (${cmd.ipc} IPC)` })
+        } else if (cmd.kind === 'REQUEST') {
+          // Supersede any earlier call from the same ally onto the same target.
+          g.warRequests = g.warRequests.filter(r => !(r.from === cmd.from && r.ally === cmd.ally && r.target === cmd.target))
+          g.warRequests.push({ from: cmd.from, ally: cmd.ally, target: cmd.target, round: g.round })
+          g.diplomacyLog.push({ round: g.round, text: `${cmd.from} calls on ally ${cmd.ally} to make war on ${cmd.target}` })
+          g.chronicle.push({ round: g.round, kind: 'treaty', text: `${cmd.from} urged ${cmd.ally} to attack ${cmd.target}` })
         }
       })
       return null
@@ -555,6 +617,9 @@ export const useGameStore = create<GameStore>()(
       const next = PHASE_ORDER[(idx + 1) % PHASE_ORDER.length]
       // Zones each nation actually advanced INTO this turn (attackers for combat)
       const moverStops = new Set<string>()
+      // `nation:zone` entries a player deliberately ordered as an attack on a
+      // friendly (ally / non-aggression) holder — otherwise entry is peaceful.
+      const attackIntents = new Set<string>()
 
       // ── Entering reveal → resolve espionage, snapshot arrows for the map ──
       if (next === 'reveal') {
@@ -593,6 +658,7 @@ export const useGameStore = create<GameStore>()(
           if (!to.units[o.nation]) to.units[o.nation] = {}
           to.units[o.nation]![o.unit] = (to.units[o.nation]![o.unit] ?? 0) + moving
           moverStops.add(`${o.nation}:${dest}`)
+          if (o.intent === 'attack') attackIntents.add(`${o.nation}:${dest}`)
           if (dest !== o.to) continuations.push({ ...o, from: dest, path: path.slice(steps), count: moving })
         }
         g.standingOrders = continuations
@@ -609,8 +675,11 @@ export const useGameStore = create<GameStore>()(
           const isLand = zone.type === 'land'
           const owner = isLand ? (zone as Territory).owner : null
 
-          // Determine attacker: a nation that moved in this round and is not the owner
-          const attacker = present.find(n => movers.has(`${n}:${zone.id}`) && n !== owner)
+          // Determine attacker: a nation that moved in this round and is not the
+          // owner. A mover entering a FRIENDLY holder's zone only counts as an
+          // attacker if it deliberately chose to attack there.
+          const attacker = present.find(n => movers.has(`${n}:${zone.id}`) && n !== owner &&
+            (!(isLand && owner && areFriendly(g, n, owner)) || attackIntents.has(`${n}:${zone.id}`)))
           if (!attacker) continue
 
           // Determine defender: owner units, other nation's units, or neutral garrison
@@ -618,14 +687,18 @@ export const useGameStore = create<GameStore>()(
           let defenderForce: Force = {}
           const others = present.filter(n => n !== attacker)
           if (others.length > 0) {
-            defender = others[0]
-            defenderForce = flattenForce(zone.units[defender])
+            // Prefer a hostile occupant; friendly troops share the zone in peace.
+            defender = others.find(n => !areFriendly(g, attacker, n) || attackIntents.has(`${attacker}:${zone.id}`)) ?? null
+            if (defender) defenderForce = flattenForce(zone.units[defender])
           } else if (isLand && owner && owner !== attacker && owner !== 'None') {
             defender = owner
             const t = zone as Territory
             defenderForce = owner === 'Neutral' && t.neutralJV > 0 ? { infantry: t.neutralJV } : {}
           }
           if (!defender) continue
+
+          // Fighting a former ally / pact partner instantly voids that treaty.
+          if (defender !== 'Neutral' && areFriendly(g, attacker, defender)) breakRelations(g, attacker, defender)
 
           const attackerForce = flattenForce(zone.units[attacker])
           if (Object.keys(attackerForce).length === 0) continue
@@ -785,6 +858,8 @@ export const useGameStore = create<GameStore>()(
         g.spyReports = []
         // Expire lapsed non-aggression pacts
         g.pacts = g.pacts.filter(p => p.untilRound > g.round)
+        // Calls to arms lapse after two rounds unless renewed
+        g.warRequests = g.warRequests.filter(r => g.round - r.round < 2)
       }
 
       g.phase = next

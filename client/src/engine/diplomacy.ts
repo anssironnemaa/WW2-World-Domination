@@ -11,6 +11,7 @@ export type ParsedCommand =
   | { kind: 'TRANSFER'; ipc: number; from: Nation; to: Nation; route: string }
   | { kind: 'NON-AGGRESSION'; rounds: number; parties: Nation[] }
   | { kind: 'MERCENARY'; ipc: number; unit: string; owner: Nation; hirer: Nation }
+  | { kind: 'REQUEST'; from: Nation; ally: Nation; target: Nation }
 
 export type ParseResult =
   | { ok: true; command: ParsedCommand }
@@ -84,6 +85,18 @@ export function parseCommand(input: string): ParseResult {
     if (!owner || !hirer) return { ok: false, error: 'MERCENARY needs OWNER: and HIRER:' }
     if (owner === hirer) return { ok: false, error: 'OWNER and HIRER must differ' }
     return { ok: true, command: { kind: 'MERCENARY', ipc, unit, owner, hirer } }
+  }
+
+  if (kind === 'REQUEST') {
+    const from = toNation(body.match(/FROM:\s*([^,]+)/i)?.[1] ?? '')
+    const ally = toNation(body.match(/ALLY:\s*([^,]+)/i)?.[1] ?? '')
+    const target = toNation(body.match(/(?:ATTACK|TARGET):\s*([^,]+)/i)?.[1] ?? '')
+    if (!from) return { ok: false, error: 'REQUEST needs FROM: your nation' }
+    if (!ally) return { ok: false, error: 'REQUEST needs ALLY: the nation you call on' }
+    if (!target) return { ok: false, error: 'REQUEST needs ATTACK: the target nation' }
+    if (from === ally) return { ok: false, error: 'FROM and ALLY must differ' }
+    if (target === from || target === ally) return { ok: false, error: 'Target must be a third nation' }
+    return { ok: true, command: { kind: 'REQUEST', from, ally, target } }
   }
 
   return { ok: false, error: `Unknown command "${kind}"` }

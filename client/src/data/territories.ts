@@ -106,4 +106,5 @@ export const SEA_ZONES: SeaZone[] = [
   { id: "sz_17", tunnus: "SZ-62", nameFI: "Keski-Tyynimeri",          nameEN: "Central Pacific",            chokepoint: "",               adjacentTerritories: "Länsi-USA, Havaiji, Karibia/Keski-Amerikka, Gilbert/Marshall", type: "sea" as const, units: {} },
   { id: "sz_18", tunnus: "SZ-62", nameFI: "Länsi-Tyynimeri",          nameEN: "Western Pacific / Philippine", chokepoint: "",             adjacentTerritories: "Japani/Tokio, Kyushu/Shikoku, Guam/Mariaanit, Filippiinit, Hollannin Itä-Intia", type: "sea" as const, units: {} },
   { id: "sz_19", tunnus: "SZ-61", nameFI: "Etelä-Tyynimeri",          nameEN: "South Pacific",              chokepoint: "",               adjacentTerritories: "Australia, Salomonsaaret/Papua, Gilbert/Marshall, Hollannin Itä-Intia", type: "sea" as const, units: {} },
+  { id: "sz_26", tunnus: "SZ-26", nameFI: "Kaspianmeri",              nameEN: "Caspian Sea",                chokepoint: "",               adjacentTerritories: "NL/Kaukasus, Uralit, Persia/Irak", type: "sea" as const, units: {} },
 ]

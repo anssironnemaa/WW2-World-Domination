@@ -62,6 +62,9 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
+        {/* Diplomatic standings — current alliances, pacts & independents */}
+        <DiplomacyBlocs game={game} />
+
         {history.length < 1 ? (
           <div style={{ color: '#667', fontSize: 12, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>
             No turns completed yet — statistics appear after the first income phase.
@@ -97,6 +100,60 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Diplomatic standings ──────────────────────────────────────────────────────
+// Groups the powers strictly by the relations formed in play so far: alliance
+// blocs, standing non-aggression pacts, and everyone else as independent.
+function DiplomacyBlocs({ game }: { game: NonNullable<ReturnType<typeof useGameStore.getState>['game']> }) {
+  const { alliances, pacts, round } = game
+  const chip = (n: Nation) => (
+    <span key={n} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 12,
+      background: 'rgba(255,255,255,0.05)', border: `1px solid ${NATION_COLORS[n]}`, fontSize: 11, color: '#eee',
+    }}>
+      <span style={{ width: 9, height: 9, borderRadius: '50%', background: NATION_COLORS[n] }} />
+      {n === 'USSR' ? 'Soviet Union' : n}
+    </span>
+  )
+  // Independent = in no alliance and no active pact.
+  const bound = new Set<Nation>()
+  for (const a of alliances) a.parties.forEach(p => bound.add(p))
+  for (const p of pacts) p.parties.forEach(x => bound.add(x))
+  const independents = NATIONS.filter(n => !bound.has(n))
+
+  const box = { flex: '1 1 240px', minWidth: 240, padding: '10px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: '1px solid #222' } as const
+  const head = { fontSize: 10, letterSpacing: 1, marginBottom: 8 } as const
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 12, fontWeight: 'bold', color: '#fff', letterSpacing: 1, marginBottom: 8 }}>🕊️ DIPLOMATIC STANDINGS</div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={box}>
+          <div style={{ ...head, color: '#7fc7a0' }}>ALLIANCES</div>
+          {alliances.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>None declared.</div>
+            : alliances.map(a => (
+              <div key={a.id} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>{a.parties.map(chip)}</div>
+            ))}
+        </div>
+        <div style={box}>
+          <div style={{ ...head, color: '#c8a830' }}>NON-AGGRESSION PACTS</div>
+          {pacts.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>None in force.</div>
+            : pacts.map(p => (
+              <div key={p.id} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+                {p.parties.map(chip)}
+                <span style={{ fontSize: 10, color: '#889' }}>· until {roundToDate(p.untilRound).short} ({Math.max(0, p.untilRound - round)} rd)</span>
+              </div>
+            ))}
+        </div>
+        <div style={box}>
+          <div style={{ ...head, color: '#8a9bb0' }}>INDEPENDENT</div>
+          {independents.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>Every power is entangled.</div>
+            : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{independents.map(chip)}</div>}
+        </div>
       </div>
     </div>
   )

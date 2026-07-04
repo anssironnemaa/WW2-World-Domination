@@ -9,6 +9,7 @@ import path from 'node:path'
 const API_ROUTES: { path: string; lib: string; fn: string }[] = [
   { path: '/api/ai-move', lib: '../api/_lib/aiMove.ts', fn: 'runAiMove' },
   { path: '/api/narrative', lib: '../api/_lib/narrative.ts', fn: 'runNarrative' },
+  { path: '/api/tts', lib: '../api/_lib/tts.ts', fn: 'runTts' },
 ]
 
 function apiDevPlugin(apiKey: string): Plugin {

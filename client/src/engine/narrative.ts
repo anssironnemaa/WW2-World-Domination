@@ -11,10 +11,6 @@ export type NarrativeResult = { text: string; source: 'gemini' | 'mock' }
 const NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
 const sum = (f: Record<string, number>) => Object.values(f).reduce((s, n) => s + n, 0)
 
-function zoneName(game: GameState, id: string) {
-  return (game.territories[id] ?? game.seaZones[id])?.nameEN ?? id
-}
-
 // Current position of every power: cities, treasury, army size, technology.
 function standings(game: GameState): string[] {
   return NATIONS.map(n => {
@@ -51,16 +47,24 @@ export function battleEvents(game: GameState): string[] {
   })
 }
 
-// Movements revealed this turn (strategic intent on the map).
-function movementEvents(game: GameState): string[] {
-  return game.revealedArrows.slice(0, 24).map(o =>
-    `${o.nation} moved ${o.count} ${unitName(o.unit)} from ${zoneName(game, o.from)} to ${zoneName(game, o.to)}`)
+// High-level movement intensity per nation (for the bulletin, not raw moves).
+function movementSummary(game: GameState): string[] {
+  const by: Partial<Record<Nation, number>> = {}
+  for (const o of game.revealedArrows) by[o.nation] = (by[o.nation] ?? 0) + 1
+  const parts = (Object.entries(by) as [Nation, number][]).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${n} (${c})`)
+  return parts.length ? [`Troop-movement activity this month: ${parts.join(', ')}`] : []
 }
 
-function incomeEvents(game: GameState): string[] {
-  return (Object.entries(game.incomeReport) as [Nation, number][])
-    .filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
-    .map(([n, v]) => `${n} drew ${v} IPC in production`)
+function diplomacyThisRound(game: GameState): string[] {
+  return game.diplomacyLog.filter(d => d.round === game.round).map(d => d.text)
+}
+
+function leaderLine(game: GameState): string {
+  const vc: Partial<Record<Nation, number>> = {}
+  for (const t of Object.values(game.territories)) if (t.isVC && t.owner === t.owner && NATIONS.includes(t.owner)) vc[t.owner] = (vc[t.owner] ?? 0) + 1
+  const top = (Object.entries(vc) as [Nation, number][]).sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([n, v]) => `${n} (${v} VCs, ${game.players[n]?.ipc ?? 0} IPC)`)
+  return `Front-runners: ${top.join(', ') || 'none yet'}`
 }
 
 // AI-stated intentions for a given round window (the revealed strategies).
@@ -78,13 +82,13 @@ async function post(body: unknown): Promise<NarrativeResult> {
 }
 
 export function requestBulletin(game: GameState): Promise<NarrativeResult> {
+  // A high-level payload — the bulletin should synthesise, not enumerate.
   const events = [
-    ...battleEvents(game),
-    ...movementEvents(game),
-    ...strategyEvents(game, game.round),
-    ...incomeEvents(game),
-    'CURRENT STANDINGS:', ...standings(game),
-    ...(treatyLines(game).length ? ['ACTIVE TREATIES:', ...treatyLines(game)] : []),
+    ...(battleEvents(game).length ? ['This month\'s battles:', ...battleEvents(game)] : ['No major battles this month.']),
+    ...(strategyEvents(game, game.round).length ? ['Powers\' stated aims:', ...strategyEvents(game, game.round)] : []),
+    ...(diplomacyThisRound(game).length ? ['Diplomacy:', ...diplomacyThisRound(game)] : []),
+    ...movementSummary(game),
+    leaderLine(game),
   ]
   return post({ kind: 'bulletin', round: game.round, dateLabel: roundToDate(game.round).long, events })
 }

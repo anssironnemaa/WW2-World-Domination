@@ -447,6 +447,7 @@ const CMD_TEMPLATES = [
   '[TRANSFER: 5 IPC, FROM: Germany, TO: Italy, ROUTE: Alps]',
   '[NON-AGGRESSION: 3 rounds, PARTIES: Germany, USSR]',
   '[MERCENARY: 6 IPC, UNIT: Panssarivaunu, OWNER: Italy, HIRER: Germany]',
+  '[REQUEST: FROM: Germany, ALLY: Italy, ATTACK: France]',
 ]
 
 function DiplomacyConsole() {
@@ -466,6 +467,7 @@ function DiplomacyConsole() {
     ...game.alliances.map(a => `⚔ ${a.parties.join(' + ')}`),
     ...game.pacts.map(p => `🕊 ${p.parties.join(' + ')} (until ${roundToDate(p.untilRound).short})`),
     ...game.mercenaries.map(m => `💰 ${m.hirer}←${m.owner} ${unitName(m.unit)}`),
+    ...(game.warRequests ?? []).map(r => `📣 ${r.from} → ${r.ally}: attack ${r.target}`),
   ]
 
   return (

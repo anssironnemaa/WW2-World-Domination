@@ -60,12 +60,47 @@ function buildBriefing(game: GameState, nation: Nation, difficulty: Difficulty) 
     nation: n, ipc: game.players[n]?.ipc ?? 0, vcs: vcCount(game, n), ai: game.players[n]?.type === 'ai',
   }))
 
+  // Calls to arms this nation has received from its allies (attack these).
+  const callsToArms = (game.warRequests ?? [])
+    .filter(r => r.ally === nation)
+    .map(r => ({ from: r.from, target: r.target }))
+
+  // This nation's current diplomatic ties — for coordinating with allies and
+  // respecting non-aggression pacts (until it chooses to betray them).
+  const allies = [...new Set(game.alliances
+    .filter(a => a.parties.includes(nation))
+    .flatMap(a => a.parties)
+    .filter(n => n !== nation))]
+  const nonAggression = [...new Set((game.pacts ?? [])
+    .filter(p => p.untilRound > game.round && p.parties.includes(nation))
+    .flatMap(p => p.parties)
+    .filter(n => n !== nation))]
+
+  // ── Learning signals: what rivals have declared/done, and who is rising ──
+  // Rivals' recently stated aims (their revealed strategies) — learn from them.
+  const observedStrategies = (game.strategicNotes ?? [])
+    .filter(s => s.nation !== nation && s.round >= game.round - 2)
+    .slice(-8)
+    .map(s => ({ nation: s.nation, note: s.text }))
+  // Latest chronicle of battles, conquests and treaty shifts to react to.
+  const recentEvents = (game.chronicle ?? []).slice(-10).map(c => c.text)
+  // Momentum: who gained/lost ground since last turn — read the map's balance.
+  const hist = game.history ?? []
+  const last = hist[hist.length - 1], prev = hist[hist.length - 2]
+  const momentum = NATIONS.map(n => ({
+    nation: n,
+    dTerritories: (last?.perNation[n]?.territories ?? 0) - (prev?.perNation[n]?.territories ?? 0),
+    dVcs: (last?.perNation[n]?.vcs ?? 0) - (prev?.perNation[n]?.vcs ?? 0),
+  })).filter(m => m.dTerritories !== 0 || m.dVcs !== 0)
+
   return {
     nation, round: game.round, difficulty, ipc: player.ipc,
     tech: { ...player.techLevels },
     owned, world, factories, buyable, rivals,
     alliances: game.alliances.map(a => a.parties as string[]),
     faction: FACTIONS[nation] ?? [nation],
+    callsToArms, allies, nonAggression,
+    observedStrategies, recentEvents, momentum,
   }
 }
 

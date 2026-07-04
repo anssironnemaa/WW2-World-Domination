@@ -41,6 +41,12 @@ export type Briefing = {
   rivals: BriefingRival[]        // the other powers
   alliances: string[][]          // existing alliances
   faction: string[]              // this nation's historical faction-mates
+  callsToArms?: { from: string; target: string }[]  // allies asking you to attack a target
+  allies?: string[]              // nations you are currently allied with
+  nonAggression?: string[]       // nations you have an active non-aggression pact with
+  observedStrategies?: { nation: string; note: string }[]  // rivals' recently stated aims
+  recentEvents?: string[]        // latest chronicle: battles, conquests, treaty shifts
+  momentum?: { nation: string; dTerritories: number; dVcs: number }[]  // who is rising/falling
 }
 
 export type AiMove = { from: string; to: string; unit: string; count: number }
@@ -166,7 +172,13 @@ function heuristicPlan(b: Briefing): AiResult {
 // ── Gemini path ───────────────────────────────────────────────────────────────
 const SYSTEM_INSTRUCTION = `You are the supreme commander of one nation in a WW2 grand-strategy game (Axis & Allies × Diplomacy). Each turn you plan the FULL turn: research, purchases, espionage, diplomacy and unit movements. Play intelligently: defend your Victory Cities, build toward your strengths, exploit weak neighbours, and use alliances and spying to your advantage. Respond ONLY with JSON:
 {"research":"land|air|naval|industry or null","purchases":[{"factory":"<factoryId>","unit":"<unitId>","count":<int>}],"spyOrders":[{"target":"<Nation>","points":<int>}],"diplomacy":["[ALLIANCE: A, B]","[NON-AGGRESSION: 2 rounds, PARTIES: A, B]"],"moves":[{"from":"<zoneId>","to":"<zoneId>","unit":"<unitId>","count":<int>}],"reasoning":"<one or two sentences>"}
-Rules: spend only IPC you have (research costs 10, spy points cost 5 each); buy only at your factories and within their capacity; use exact ids from the briefing; land units cannot enter sea zones; never move more than you have. Keep purchases realistic. Leave arrays empty when you do nothing.`
+Rules: spend only IPC you have (research costs 10, spy points cost 5 each); buy only at your factories and within their capacity; use exact ids from the briefing; land units cannot enter sea zones; never move more than you have. Keep purchases realistic. Leave arrays empty when you do nothing.
+Amphibious rule: a land army can only cross open sea by loading onto a Transport ship (each carries 2) staged in a sea zone touching both coasts — a land unit ordered straight across water with no Transport there will simply NOT move. To invade across sea, first build/position Transports (and Carriers for aircraft) and move the troops with them.
+Calls to arms: if the briefing's "callsToArms" is non-empty, an ally has asked you to make war on the named target(s). Honour reasonable requests — concentrate offensives against those enemies where your forces can reach them, since coordinated allied pressure on a shared enemy is a major advantage.
+Alliances ("allies"): plan your turn to BENEFIT your allies, not just yourself. Do NOT attack an ally (that instantly shatters the alliance). Instead attack your shared enemies, relieve pressure on fronts where an ally is hard-pressed, avoid grabbing territory an ally is clearly going for, and coordinate advances so your fronts reinforce each other. Treat allied borders as safe so you can commit forces elsewhere.
+Non-aggression ("nonAggression"): do not attack these nations while the pact holds — plan around them as secure borders and direct your offensives elsewhere.
+Betrayal is allowed but costly: you MAY deliberately attack an ally or pact partner if it is decisively advantageous (e.g. a soft, valuable Victory City you can seize), but the treaty is torn up the instant you strike and they will turn on you — only plot this when the payoff clearly outweighs losing the partnership.
+Learn and adapt each turn: "observedStrategies" shows what rival powers have recently declared or done, "recentEvents" is the latest chronicle of battles, conquests and treaty shifts, and "momentum" shows who is gaining or losing ground. READ THESE SIGNALS AND THE MAP: identify the rising threat and the weakening prey, and let that drive your diplomacy. Alliances are DYNAMIC, not fixed — form, deepen, abandon or switch them as the balance of power moves. Seek out the alliances that are genuinely advantageous to YOU (ganging up on the strongest player, protecting a vulnerable flank, isolating a rival), and walk away from ones that no longer serve you. Trust is never total: an ally who is snowballing may betray you, so weigh how much to expose yourself and consider striking first if they have become the greater danger. Whenever you change strategy or allegiance, state WHY in "reasoning" (what you observed and how it shifted your calculation) so the war's turning points can be understood afterwards.`
 
 async function geminiPlan(b: Briefing, apiKey: string): Promise<AiResult> {
   const { GoogleGenAI } = await import('@google/genai')

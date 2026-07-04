@@ -102,6 +102,7 @@ export type MoveOrder = {
   standing?: boolean      // multi-turn march still en route
   needsTransport?: boolean
   transportZone?: string  // sea zone the crossing loads through
+  intent?: 'attack' | 'move'  // into an ally/pact zone: 'attack' fights, else peaceful passage/station
 }
 
 // ── Diplomacy ─────────────────────────────────────────────────────────────────
@@ -115,6 +116,14 @@ export type NonAggressionPact = {
   id: string
   parties: Nation[]
   untilRound: number     // pact expires at the start of this round
+}
+
+// A call to arms: `from` asks allied `ally` to make war on `target`.
+export type WarRequest = {
+  from: Nation
+  ally: Nation
+  target: Nation
+  round: number
 }
 
 export type MercenaryContract = {
@@ -194,6 +203,7 @@ export type GameState = {
   alliances: Alliance[]
   pacts: NonAggressionPact[]
   mercenaries: MercenaryContract[]
+  warRequests: WarRequest[]        // calls to arms: ally asked to attack a target
   diplomacyLog: DiplomacyLogEntry[]
   // Espionage
   spyOrders: SpyOrder[]
