@@ -36,6 +36,30 @@ A browser-based digital Game Master Engine for a WW2 grand-strategy board game
 > Without `GEMINI_API_KEY` the game still runs — AI and narrative fall back to a
 > deterministic heuristic/template. Add the key to enable real Gemini reasoning.
 
+## Online multiplayer (join by code from any device)
+
+The lobby has an **ONLINE** tab: one player creates a war and shares a 5-letter
+code; others open the game on their own phone / iPad / laptop, tap **JOIN WITH
+CODE**, and claim a nation with a private PIN. Everyone plans their secret moves,
+diplomacy, stats and chronicle on their own screen — the server only ever sends
+each player *their own* hidden information.
+
+To enable cross-device play in production you need a shared store — **Vercel KV**
+(Upstash Redis):
+
+1. In Vercel: **Storage → Create → KV** (or Marketplace → Upstash), then connect
+   it to this project. Vercel injects `KV_REST_API_URL` and `KV_REST_API_TOKEN`
+   automatically.
+2. Redeploy. That's it — the `/api/game` relay uses those vars.
+
+> Without KV, online mode still works **within a single running server** (great
+> for local `vite dev` testing on one machine), but not across Vercel's stateless
+> function instances — so production cross-device play requires the KV vars.
+>
+> The host device runs the game engine and must stay open for the war to advance;
+> guests send their orders to the host. Local **pass-and-play** (hotseat) mode is
+> unchanged and needs no backend.
+
 ## Local development
 
 ```bash

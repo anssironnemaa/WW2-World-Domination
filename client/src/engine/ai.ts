@@ -5,6 +5,7 @@
 import type { GameState, Nation } from '../data/types'
 import { UNIT_TYPES } from '../data/units'
 import { factoryCapacityBonus } from '../data/tech'
+import { ADJACENCY, ZONE_KIND } from '../data/adjacency'
 
 export type AiMove = { from: string; to: string; unit: string; count: number }
 export type AiPurchase = { factory: string; unit: string; count: number }
@@ -15,6 +16,7 @@ export type AiResult = {
   spyOrders: AiSpy[]
   diplomacy: string[]
   research: string | null
+  buildFactories: string[]      // territory ids to build a new factory on
   reasoning: string
   source: 'gemini' | 'mock'
 }
@@ -52,9 +54,25 @@ function buildBriefing(game: GameState, nation: Nation, difficulty: Difficulty) 
   const bonus = factoryCapacityBonus(player.techLevels)
   const factories = Object.values(game.territories)
     .filter(t => t.owner === nation && t.hasFactory)
-    .map(t => ({ id: t.id, name: t.nameEN, capacity: Math.max(0, t.ipc - t.factoryDamage + bonus) }))
+    .map(t => {
+      const seas = (ADJACENCY[t.id] ?? []).filter(z => ZONE_KIND[z] === 'sea')
+      return {
+        id: t.id, name: t.nameEN, capacity: Math.max(0, t.ipc - t.factoryDamage + bonus),
+        coastal: seas.length > 0,   // only coastal factories can build naval vessels
+        navalSea: seas[0] ? (game.seaZones[seas[0]]?.nameEN ?? seas[0]) : undefined,
+      }
+    })
 
   const buyable = Object.values(UNIT_TYPES).map(u => ({ id: u.id, name: u.nameFI, cost: u.cost, category: u.category }))
+
+  // Factory construction: how many new factories this nation may still build (cap 2)
+  // and the best owned territories without a factory to place them on.
+  const factoriesRemaining = Math.max(0, 2 - (player.factoriesBuilt ?? 0))
+  const buildableFactorySites = Object.values(game.territories)
+    .filter(t => t.owner === nation && !t.hasFactory)
+    .sort((a, b) => b.ipc - a.ipc)
+    .slice(0, 6)
+    .map(t => ({ id: t.id, name: t.nameEN, ipc: t.ipc }))
 
   const rivals = NATIONS.filter(n => n !== nation).map(n => ({
     nation: n, ipc: game.players[n]?.ipc ?? 0, vcs: vcCount(game, n), ai: game.players[n]?.type === 'ai',
@@ -101,6 +119,7 @@ function buildBriefing(game: GameState, nation: Nation, difficulty: Difficulty) 
     faction: FACTIONS[nation] ?? [nation],
     callsToArms, allies, nonAggression,
     observedStrategies, recentEvents, momentum,
+    factoriesRemaining, buildableFactorySites,
   }
 }
 

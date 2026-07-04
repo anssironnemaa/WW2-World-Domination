@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { listSaves, deleteSave, exportSave, importSaveFile, type SaveMeta } from '../../engine/saves'
 import { roundToDate } from '../../data/calendar'
+import { OnlineLobby } from '../online/OnlineLobby'
 import type { Nation, PlayerType, AiDifficulty } from '../../data/types'
 
 const NATIONS = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy'] as const
@@ -37,6 +38,7 @@ export function Lobby() {
   const [difficulty, setDifficulty] = useState<AiDifficulty>('normal')
   const [warName, setWarName] = useState('')
   const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
+  const [mode, setMode] = useState<'local' | 'online'>('local')
   const refreshSaves = () => setSaves(listSaves())
 
   const cycleType = (n: PlayableNation) => setRows(r => {
@@ -72,6 +74,19 @@ export function Lobby() {
           <div style={{ fontSize: 28, fontWeight: 'bold', letterSpacing: 3, color: '#fff' }}>WORLD DOMINANCE</div>
           <div style={{ fontSize: 12, letterSpacing: 4, color: '#8a9bb0', marginTop: 4 }}>ASSEMBLE THE POWERS · 1939</div>
         </div>
+
+        {/* Local (pass-and-play) vs Online (multi-device) */}
+        <div style={{ display: 'flex', gap: 8, margin: '16px 0 4px' }}>
+          {([['local', '🎮 LOCAL (pass-and-play)'], ['online', '🌐 ONLINE (join by code)']] as const).map(([m, label]) => (
+            <button key={m} onClick={() => setMode(m)} style={{
+              flex: 1, padding: '10px 0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', letterSpacing: 1,
+              background: mode === m ? '#c8a83022' : 'rgba(255,255,255,0.03)', border: `1px solid ${mode === m ? '#c8a830' : '#333'}`,
+              color: mode === m ? '#ffe066' : '#8899aa',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {mode === 'online' ? <div style={{ marginTop: 8 }}><OnlineLobby /></div> : <>
 
         {/* Continue / import a saved war */}
         {(saves.length > 0 || true) && (
@@ -187,8 +202,9 @@ export function Lobby() {
 
         <div style={{ textAlign: 'center', fontSize: 10, color: '#556', marginTop: 12, lineHeight: 1.5 }}>
           Hotseat mode — pass one device between human players; each unlocks their
-          turn with their PIN. Networked multi-device play is coming next.
+          turn with their PIN. For separate devices, use ONLINE above.
         </div>
+        </>}
       </div>
     </div>
   )

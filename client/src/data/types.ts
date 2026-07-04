@@ -66,6 +66,7 @@ export type Player = {
   techLevels: TechLevels
   codeBreaking: boolean   // one-time 20 IPC purchase — d6 each round may reveal enemy orders
   encryption: boolean     // 10 IPC — counters enemy code-breaking
+  factoriesBuilt: number  // new factories constructed this war (lifetime cap of 2)
 }
 
 export type TechLevels = {
@@ -80,6 +81,7 @@ export type ProductionQueueItem = {
   count: number
   factory: string  // territory id
   turnsRemaining: number
+  deliverTo?: string  // sea zone id for naval vessels (they deploy at sea, not the factory)
 }
 
 export type Phase =

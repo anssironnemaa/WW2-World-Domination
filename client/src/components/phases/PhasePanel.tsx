@@ -17,6 +17,8 @@ const PHASE_LABELS: Record<string, string> = {
 export function PhasePanel() {
   const game = useGameStore(s => s.game)
   const advancePhase = useGameStore(s => s.advancePhase)
+  const online = useGameStore(s => s.online)
+  const isGuest = online?.role === 'guest'
   const [open, setOpen] = useState(true)
   if (!game) return null
 
@@ -50,24 +52,30 @@ export function PhasePanel() {
               Purchases go to the production queue and deploy at the chosen factory when built.
             </div>
           )}
-          {game.phase === 'orders' && <><OrdersEditor /><AiControl /><EspionagePanel /></>}
+          {game.phase === 'orders' && <><OrdersEditor />{!isGuest && <AiControl />}<EspionagePanel /></>}
           {game.phase === 'reveal' && <><SpyReportsView /><RevealTable /></>}
           {game.phase === 'battle' && <BattleReports />}
           {game.phase === 'income' && <IncomeSummary />}
 
-          <button
-            onClick={advancePhase}
-            disabled={!allLocked && game.phase === 'orders'}
-            style={{
-              padding: '8px 0', border: 'none', borderRadius: 3,
-              background: (allLocked || game.phase !== 'orders') ? '#c8a830' : '#333',
-              color: (allLocked || game.phase !== 'orders') ? '#0d0d0d' : '#666',
-              fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
-              cursor: (allLocked || game.phase !== 'orders') ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {game.phase === 'income' ? `▶ ADVANCE TO ${roundToDate(game.round + 1).short}` : '▶ NEXT PHASE'}
-          </button>
+          {isGuest ? (
+            <div style={{ padding: '8px 10px', borderRadius: 3, background: 'rgba(58,91,122,0.15)', border: '1px solid #2a3b4a', color: '#8ab4d8', fontSize: 11, textAlign: 'center' }}>
+              ⏳ The host advances the war. Lock your orders and the round proceeds when everyone is ready.
+            </div>
+          ) : (
+            <button
+              onClick={advancePhase}
+              disabled={!allLocked && game.phase === 'orders'}
+              style={{
+                padding: '8px 0', border: 'none', borderRadius: 3,
+                background: (allLocked || game.phase !== 'orders') ? '#c8a830' : '#333',
+                color: (allLocked || game.phase !== 'orders') ? '#0d0d0d' : '#666',
+                fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
+                cursor: (allLocked || game.phase !== 'orders') ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {game.phase === 'income' ? `▶ ADVANCE TO ${roundToDate(game.round + 1).short}` : '▶ NEXT PHASE'}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -625,7 +633,7 @@ function SpyReportsView() {
 }
 
 // ── AI control (orders phase) ─────────────────────────────────────────────────
-const EMPTY_AI: AiResult = { moves: [], purchases: [], spyOrders: [], diplomacy: [], research: null, reasoning: '', source: 'mock' }
+const EMPTY_AI: AiResult = { moves: [], purchases: [], spyOrders: [], diplomacy: [], research: null, buildFactories: [], reasoning: '', source: 'mock' }
 
 function AiControl() {
   const submitOrder = useGameStore(s => s.submitOrder)
@@ -634,6 +642,7 @@ function AiControl() {
   const applyDiplomacyCommand = useGameStore(s => s.applyDiplomacyCommand)
   const submitSpyOrder = useGameStore(s => s.submitSpyOrder)
   const buyTech = useGameStore(s => s.buyTech)
+  const buildFactory = useGameStore(s => s.buildFactory)
   const noteStrategy = useGameStore(s => s.noteStrategy)
   const game = useGameStore(s => s.game)!
   const [running, setRunning] = useState(false)
@@ -658,6 +667,7 @@ function AiControl() {
     for (const { nation, res, err } of settled) {
       if (err) continue
       if (res.research) buyTech(nation, res.research as 'land' | 'air' | 'naval' | 'industry')
+      for (const tid of res.buildFactories ?? []) buildFactory(nation, tid)
       for (const p of res.purchases) confirmPurchase(nation, { [p.unit]: p.count }, p.factory)
       for (const cmd of res.diplomacy) applyDiplomacyCommand(cmd)
       for (const s of res.spyOrders) submitSpyOrder(nation, s.target as Nation, s.points)
@@ -699,6 +709,7 @@ function AiControl() {
           {!err && (
             <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {res.research && <div style={{ fontSize: 10, color: '#8fdc8f' }}>🔬 researches {res.research}</div>}
+              {(res.buildFactories ?? []).map((tid, i) => <div key={i} style={{ fontSize: 10, color: '#e8d9a0' }}>⚙ builds factory in {zoneName(tid)}</div>)}
               {res.purchases.length > 0 && (
                 <div style={{ fontSize: 10, color: '#c8b060' }}>🛒 buys {res.purchases.map(p => `${p.count} ${unitName(p.unit)}`).join(', ')}</div>
               )}

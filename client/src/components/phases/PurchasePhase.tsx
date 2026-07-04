@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { UNIT_TYPES, unitName } from '../../data/units'
+import { ADJACENCY, ZONE_KIND } from '../../data/adjacency'
 import type { Nation, UnitType } from '../../data/types'
 
 const NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
@@ -27,9 +28,13 @@ type Props = {
 export function PurchasePhase({ nation, onClose }: Props) {
   const game = useGameStore(s => s.game)
   const confirmPurchase = useGameStore(s => s.confirmPurchase)
+  const buildFactory = useGameStore(s => s.buildFactory)
   const [cart, setCart] = useState<Cart>({})
   const [selectedFactory, setSelectedFactory] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState('')
+  const [buildZone, setBuildZone] = useState('')
+  const [buildError, setBuildError] = useState('')
+  const [navalSea, setNavalSea] = useState('')
 
   const player = game?.players[nation]
   const color = NATION_COLORS[nation]
@@ -53,6 +58,30 @@ export function PurchasePhase({ nation, onClose }: Props) {
 
   const budget = player?.ipc ?? 0
   const remaining = budget - cartCost
+
+  // Factory construction: owned territories without a factory; lifetime cap of 2.
+  const FACTORY_COST = 15, MAX_FACTORIES = 2
+  const factoriesBuilt = player?.factoriesBuilt ?? 0
+  const buildableZones = useMemo(() => {
+    if (!game) return []
+    return Object.values(game.territories).filter(t => t.owner === nation && !t.hasFactory)
+  }, [game, nation])
+  const canBuildFactory = factoriesBuilt < MAX_FACTORIES && buildableZones.length > 0 && budget >= FACTORY_COST
+
+  // Naval production: ships must be built at a coastal factory and launch into
+  // an adjacent sea zone. Track whether the cart has navy and which seas the
+  // chosen factory can reach.
+  const cartHasNavy = useMemo(() =>
+    Object.entries(cart).some(([uid, n]) => n > 0 && UNIT_TYPES[uid]?.category === 'navy')
+  , [cart])
+  const factorySeas = useMemo(() => {
+    if (!selectedFactory || !game) return [] as { id: string; name: string }[]
+    return (ADJACENCY[selectedFactory] ?? [])
+      .filter(z => ZONE_KIND[z] === 'sea')
+      .map(z => ({ id: z, name: game.seaZones[z]?.nameEN ?? z }))
+  }, [selectedFactory, game])
+  const factoryIsCoastal = factorySeas.length > 0
+  const navalReady = !cartHasNavy || (factoryIsCoastal && !!navalSea)
 
   const canAfford = (unit: UnitType) => remaining >= unit.cost
   const add = (uid: string) => setCart(c => ({ ...c, [uid]: (c[uid] ?? 0) + 1 }))
@@ -219,6 +248,59 @@ export function PurchasePhase({ nation, onClose }: Props) {
               )}
             </div>
 
+            {/* Naval delivery — where the ships launch (only when buying navy) */}
+            {cartHasNavy && (
+              <div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>🚢 LAUNCH NAVY INTO</div>
+                {!selectedFactory ? (
+                  <div style={{ fontSize: 12, color: '#e0b060', fontStyle: 'italic' }}>Pick a factory first.</div>
+                ) : !factoryIsCoastal ? (
+                  <div style={{ fontSize: 12, color: '#e05050' }}>That factory is inland — it can't build ships. Choose a coastal factory.</div>
+                ) : (
+                  <select value={navalSea} onChange={e => setNavalSea(e.target.value)}
+                    style={{ width: '100%', background: '#0f141a', border: '1px solid #444', borderRadius: 5, color: '#ddd', fontSize: 12, padding: '6px 8px' }}>
+                    <option value="">Choose a sea zone…</option>
+                    {factorySeas.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {/* Build a new factory (max 2 per war, on a factory-less owned zone) */}
+            <div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>
+                BUILD FACTORY <span style={{ color: '#667' }}>· {FACTORY_COST} IPC · {MAX_FACTORIES - factoriesBuilt} of {MAX_FACTORIES} left</span>
+              </div>
+              {factoriesBuilt >= MAX_FACTORIES ? (
+                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>Factory limit reached.</div>
+              ) : buildableZones.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>No factory-less territory you own.</div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <select value={buildZone} onChange={e => { setBuildZone(e.target.value); setBuildError('') }}
+                    style={{ flex: 1, background: '#0f141a', border: '1px solid #444', borderRadius: 5, color: '#ddd', fontSize: 12, padding: '6px 8px' }}>
+                    <option value="">Choose a territory…</option>
+                    {buildableZones.map(z => <option key={z.id} value={z.id}>{z.nameEN} ({z.ipc} IPC)</option>)}
+                  </select>
+                  <button
+                    disabled={!buildZone || !canBuildFactory}
+                    onClick={() => {
+                      const err = buildFactory(nation, buildZone)
+                      setBuildError(err ?? '')
+                      if (!err) setBuildZone('')
+                    }}
+                    style={{
+                      padding: '6px 12px', borderRadius: 5, border: 'none', fontWeight: 'bold', fontSize: 11,
+                      background: buildZone && canBuildFactory ? '#6a5a20' : '#333',
+                      color: buildZone && canBuildFactory ? '#ffe066' : '#666',
+                      cursor: buildZone && canBuildFactory ? 'pointer' : 'not-allowed',
+                    }}
+                  >⚙ BUILD</button>
+                </div>
+              )}
+              {buildError && <div style={{ color: '#e05050', fontSize: 11, marginTop: 4 }}>{buildError}</div>}
+            </div>
+
             {/* Cart summary */}
             {cartCount > 0 && (
               <div>
@@ -251,28 +333,27 @@ export function PurchasePhase({ nation, onClose }: Props) {
             )}
 
             {/* Confirm button */}
-            <button
-              disabled={cartCount === 0 || !selectedFactory || remaining < 0}
-              onClick={() => {
-                const err = confirmPurchase(nation, cart, selectedFactory!)
-                if (err) setPurchaseError(err)
-                else onClose()
-              }}
-              style={{
-                marginTop: 'auto',
-                padding: '10px 0',
-                borderRadius: 6,
-                background: (cartCount > 0 && selectedFactory && remaining >= 0) ? color : '#333',
-                color: '#fff',
-                border: 'none',
-                cursor: (cartCount > 0 && selectedFactory && remaining >= 0) ? 'pointer' : 'not-allowed',
-                fontWeight: 'bold',
-                fontSize: 14,
-                opacity: (cartCount > 0 && selectedFactory && remaining >= 0) ? 1 : 0.5,
-              }}
-            >
-              ✓ CONFIRM PURCHASE
-            </button>
+            {(() => {
+              const ready = cartCount > 0 && !!selectedFactory && remaining >= 0 && navalReady
+              return (
+                <button
+                  disabled={!ready}
+                  onClick={() => {
+                    const err = confirmPurchase(nation, cart, selectedFactory!, navalSea || undefined)
+                    if (err) setPurchaseError(err)
+                    else onClose()
+                  }}
+                  style={{
+                    marginTop: 'auto', padding: '10px 0', borderRadius: 6,
+                    background: ready ? color : '#333', color: '#fff', border: 'none',
+                    cursor: ready ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: 14,
+                    opacity: ready ? 1 : 0.5,
+                  }}
+                >
+                  {cartHasNavy && !navalReady ? '⚓ CHOOSE A SEA ZONE FOR THE SHIPS' : '✓ CONFIRM PURCHASE'}
+                </button>
+              )
+            })()}
           </div>
         </div>
       </div>

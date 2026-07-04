@@ -24,7 +24,7 @@ export type BriefingWorldZone = {
   type: 'land' | 'sea'
 }
 
-export type BriefingFactory = { id: string; name: string; capacity: number }
+export type BriefingFactory = { id: string; name: string; capacity: number; coastal?: boolean; navalSea?: string }
 export type BriefingUnit = { id: string; name: string; cost: number; category: string }
 export type BriefingRival = { nation: string; ipc: number; vcs: number; ai: boolean }
 
@@ -47,6 +47,8 @@ export type Briefing = {
   observedStrategies?: { nation: string; note: string }[]  // rivals' recently stated aims
   recentEvents?: string[]        // latest chronicle: battles, conquests, treaty shifts
   momentum?: { nation: string; dTerritories: number; dVcs: number }[]  // who is rising/falling
+  factoriesRemaining?: number    // new factories you may still build (cap 2, 15 IPC each)
+  buildableFactorySites?: { id: string; name: string; ipc: number }[]  // owned zones without a factory
 }
 
 export type AiMove = { from: string; to: string; unit: string; count: number }
@@ -58,6 +60,7 @@ export type AiResult = {
   spyOrders: AiSpy[]
   diplomacy: string[]           // bracketed commands, e.g. "[ALLIANCE: Germany, Italy]"
   research: string | null       // one branch to research: land|air|naval|industry
+  buildFactories: string[]      // territory ids to build a new factory on
   reasoning: string
   source: 'gemini' | 'mock'
 }
@@ -104,6 +107,18 @@ function sanitizePurchases(purchases: AiPurchase[], b: Briefing): AiPurchase[] {
       if (last && last.factory === p.factory && last.unit === p.unit) last.count++
       else out.push({ factory: p.factory, unit: p.unit, count: 1 })
     }
+  }
+  return out
+}
+
+// Keep only valid factory-build sites, within the remaining allowance & budget.
+function sanitizeFactories(ids: string[], b: Briefing): string[] {
+  const sites = new Set((b.buildableFactorySites ?? []).map(s => s.id))
+  const allowance = Math.min(b.factoriesRemaining ?? 0, Math.floor(b.ipc / 15))
+  const out: string[] = []
+  for (const id of ids ?? []) {
+    if (out.length >= allowance) break
+    if (sites.has(id) && !out.includes(id)) out.push(id)
   }
   return out
 }
@@ -163,7 +178,7 @@ function heuristicPlan(b: Briefing): AiResult {
   }
 
   return {
-    moves, purchases, spyOrders, diplomacy, research,
+    moves, purchases, spyOrders, diplomacy, research, buildFactories: [],
     reasoning: `${moveText}; builds ${purchases.reduce((s, p) => s + p.count, 0)} units${research ? `, researches ${research}` : ''}.`,
     source: 'mock',
   }
@@ -171,8 +186,10 @@ function heuristicPlan(b: Briefing): AiResult {
 
 // ── Gemini path ───────────────────────────────────────────────────────────────
 const SYSTEM_INSTRUCTION = `You are the supreme commander of one nation in a WW2 grand-strategy game (Axis & Allies × Diplomacy). Each turn you plan the FULL turn: research, purchases, espionage, diplomacy and unit movements. Play intelligently: defend your Victory Cities, build toward your strengths, exploit weak neighbours, and use alliances and spying to your advantage. Respond ONLY with JSON:
-{"research":"land|air|naval|industry or null","purchases":[{"factory":"<factoryId>","unit":"<unitId>","count":<int>}],"spyOrders":[{"target":"<Nation>","points":<int>}],"diplomacy":["[ALLIANCE: A, B]","[NON-AGGRESSION: 2 rounds, PARTIES: A, B]"],"moves":[{"from":"<zoneId>","to":"<zoneId>","unit":"<unitId>","count":<int>}],"reasoning":"<one or two sentences>"}
+{"research":"land|air|naval|industry or null","purchases":[{"factory":"<factoryId>","unit":"<unitId>","count":<int>}],"buildFactories":["<territoryId>"],"spyOrders":[{"target":"<Nation>","points":<int>}],"diplomacy":["[ALLIANCE: A, B]","[NON-AGGRESSION: 2 rounds, PARTIES: A, B]"],"moves":[{"from":"<zoneId>","to":"<zoneId>","unit":"<unitId>","count":<int>}],"reasoning":"<one or two sentences>"}
 Rules: spend only IPC you have (research costs 10, spy points cost 5 each); buy only at your factories and within their capacity; use exact ids from the briefing; land units cannot enter sea zones; never move more than you have. Keep purchases realistic. Leave arrays empty when you do nothing.
+Naval production: naval vessels (submarine, transport, destroyer, cruiser, battleship, carrier) can ONLY be built at a factory with "coastal":true — they launch into that factory's adjacent sea. Never queue ships at an inland factory; if you want a fleet somewhere, build it at a coastal factory near that theatre (and remember land armies still need Transports to invade across water).
+Factories: you may build new war factories to expand production. Each costs 15 IPC and must go on one of your own territories WITHOUT a factory — choose from "buildableFactorySites" (prefer high-IPC, defensible interior provinces). You may build at most "factoriesRemaining" this whole war, so spend the allowance wisely; put ids in "buildFactories".
 Amphibious rule: a land army can only cross open sea by loading onto a Transport ship (each carries 2) staged in a sea zone touching both coasts — a land unit ordered straight across water with no Transport there will simply NOT move. To invade across sea, first build/position Transports (and Carriers for aircraft) and move the troops with them.
 Calls to arms: if the briefing's "callsToArms" is non-empty, an ally has asked you to make war on the named target(s). Honour reasonable requests — concentrate offensives against those enemies where your forces can reach them, since coordinated allied pressure on a shared enemy is a major advantage.
 Alliances ("allies"): plan your turn to BENEFIT your allies, not just yourself. Do NOT attack an ally (that instantly shatters the alliance). Instead attack your shared enemies, relieve pressure on fronts where an ally is hard-pressed, avoid grabbing territory an ally is clearly going for, and coordinate advances so your fronts reinforce each other. Treat allied borders as safe so you can commit forces elsewhere.
@@ -201,6 +218,7 @@ async function geminiPlan(b: Briefing, apiKey: string): Promise<AiResult> {
     spyOrders: (parsed.spyOrders ?? []).filter(s => s && s.target && s.points > 0).map(s => ({ target: s.target, points: Math.min(4, Math.floor(s.points) || 1) })),
     diplomacy: (parsed.diplomacy ?? []).filter(d => typeof d === 'string' && d.includes('[')).slice(0, 3),
     research,
+    buildFactories: sanitizeFactories(parsed.buildFactories ?? [], b),
     reasoning: parsed.reasoning ?? `${b.nation} issues its orders.`,
     source: 'gemini',
   }

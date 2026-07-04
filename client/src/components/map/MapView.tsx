@@ -29,6 +29,12 @@ export function MapView() {
   const mapRef = useRef<HTMLDivElement | null>(null)
   const [svgContent, setSvgContent] = useState<string | null>(null)
   const [anchors, setAnchors] = useState<Anchors>({})
+  // Labels + unit chips grow with the zoom (so zooming in makes them readable)
+  // but their growth is capped at LABEL_ZOOM_CAP× so they never balloon: below
+  // the cap they scale with the map, above it they hold a constant screen size.
+  const LABEL_ZOOM_CAP = 4
+  const [zoom, setZoom] = useState(1)
+  const labelScale = Math.min(1, LABEL_ZOOM_CAP / zoom)
   const [showStats, setShowStats] = useState(false)
   const [showEvents, setShowEvents] = useState(false)
   const [showWarRoom, setShowWarRoom] = useState(false)
@@ -86,18 +92,27 @@ export function MapView() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <Sidebar />
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <TransformWrapper initialScale={1} minScale={0.3} maxScale={8} wheel={{ step: 0.1 }} panning={{ velocityDisabled: true }}>
+          <TransformWrapper initialScale={1} minScale={0.3} maxScale={8} wheel={{ step: 0.1 }} panning={{ velocityDisabled: true }}
+            onTransform={(ref: { state: { scale: number } }) => setZoom(ref.state.scale)}>
             <TransformComponent
               wrapperStyle={{ width: '100%', height: '100%', background: '#1a4a6a' }}
               contentStyle={{ width: '100%', height: '100%' }}
             >
               {svgContent ? (
-                <div ref={mapRef} onClick={onMapClick} style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <div ref={mapRef} onClick={onMapClick} style={{ position: 'relative', width: '100%', height: '100%', ['--lscale' as string]: labelScale }}>
+                  {/* Keep map labels (country/sea/VC names) a constant screen size when zoomed in */}
+                  <style>{`
+                    #ww2-map .tlabel { font-size: calc(6.5px * var(--lscale, 1)) !important; }
+                    #ww2-map .slabel { font-size: calc(5.5px * var(--lscale, 1)) !important; }
+                    #ww2-map .clabel { font-size: calc(5px * var(--lscale, 1)) !important; }
+                    #ww2-map .vc { font-size: calc(9px * var(--lscale, 1)) !important; }
+                    #ww2-map .fi { font-size: calc(7px * var(--lscale, 1)) !important; }
+                  `}</style>
                   <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: svgContent }} />
                   {/* React-managed overlay: units, arrows, battle marks (never vanish) */}
                   <svg viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid meet"
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-                    {game && <MapOverlay anchors={anchors} game={game} />}
+                    {game && <MapOverlay anchors={anchors} game={game} labelScale={labelScale} />}
                   </svg>
                 </div>
               ) : (
@@ -160,7 +175,7 @@ function topBtn(bg: string, border: string, color: string): React.CSSProperties 
 }
 
 // ── React SVG overlay: unit chips, movement arrows, battle marks ───────────────
-function MapOverlay({ anchors, game }: { anchors: Anchors; game: GameState }) {
+function MapOverlay({ anchors, game, labelScale = 1 }: { anchors: Anchors; game: GameState; labelScale?: number }) {
   const CHIP_W = 21, CHIP_H = 7.5, GAP = 1
 
   const arrows = game.revealedArrows
@@ -220,13 +235,13 @@ function MapOverlay({ anchors, game }: { anchors: Anchors; game: GameState }) {
         )
       })}
 
-      {/* Unit chips */}
+      {/* Unit chips — counter-scaled about each anchor so they stay readable */}
       {chipsByZone.map(({ zoneId, chips }) => {
         const a = anchors[zoneId]; if (!a) return null
         const [cx, cy] = a
         const startY = cy - (chips.length * (CHIP_H + GAP)) / 2
         return (
-          <g key={`u-${zoneId}`}>
+          <g key={`u-${zoneId}`} transform={`translate(${cx} ${cy}) scale(${labelScale}) translate(${-cx} ${-cy})`}>
             {chips.map((chip, i) => {
               const y = startY + i * (CHIP_H + GAP)
               const color = NATION_COLORS[chip.nation] ?? '#888'
@@ -248,12 +263,30 @@ function MapOverlay({ anchors, game }: { anchors: Anchors; game: GameState }) {
 // ── On-map nation picker (orders phase) ───────────────────────────────────────
 function OnMapOrdersBar() {
   const game = useGameStore(s => s.game)!
+  const online = useGameStore(s => s.online)
   const setOrderingNation = useGameStore(s => s.setOrderingNation)
   const [sel, setSel] = useState<Nation | null>(null)
   const [pin, setPin] = useState('')
   const [err, setErr] = useState('')
 
-  const humans = NATIONS.filter(n => game.players[n]?.type === 'human' && !game.lockedNations.includes(n))
+  // A remote guest only ever commands its own nation — no picker, no PIN prompt
+  // (it already authenticated when it joined). Jump straight to its orders.
+  useEffect(() => {
+    if (online?.role === 'guest' && !game.lockedNations.includes(online.nation)) setOrderingNation(online.nation)
+  }, [online, game.lockedNations, setOrderingNation])
+  if (online?.role === 'guest') {
+    return (
+      <div style={bannerBox('rgba(10,10,10,0.9)', '#3a5b7a')}>
+        <span>{game.lockedNations.includes(online.nation) ? 'Orders locked — waiting for the other powers.' : 'Preparing your orders…'}</span>
+      </div>
+    )
+  }
+
+  // Online host commands only its own nation (remote nations lock themselves);
+  // local hotseat lets you pick any human power.
+  const humans = online
+    ? (game.lockedNations.includes(online.nation) ? [] : [online.nation])
+    : NATIONS.filter(n => game.players[n]?.type === 'human' && !game.lockedNations.includes(n))
   if (humans.length === 0) {
     return (
       <div style={bannerBox('rgba(10,10,10,0.9)', '#3a5b7a')}>

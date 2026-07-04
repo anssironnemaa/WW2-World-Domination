@@ -10,9 +10,39 @@ import { resolveEspionage } from '../engine/espionage'
 import { roundToDate } from '../data/calendar'
 import { TECH_COST, unitCostWithTech } from '../data/tech'
 import { evaluateMove } from '../engine/movement'
+import { ADJACENCY, ZONE_KIND } from '../data/adjacency'
+import { mp } from '../engine/online'
+
+// ── Online multiplayer session ───────────────────────────────────────────────
+export type OnlineSession = {
+  code: string
+  role: 'host' | 'guest'
+  nation: Nation        // the nation this device's human controls
+  pin: string
+  hostToken?: string    // host only
+}
+// While a guest has just acted, keep its optimistic local state instead of
+// letting the next poll overwrite it (gives the host a moment to catch up).
+let guestDirtyUntil = 0
+export const markGuestDirty = () => { guestDirtyUntil = Date.now() + 5000 }
+export const guestIsDirty = () => Date.now() < guestDirtyUntil
+
+const isNavyUnit = (uid: string) => (UNIT_TYPES[uid]?.category ?? '') === 'navy'
+const coastalSeas = (territoryId: string) => (ADJACENCY[territoryId] ?? []).filter(z => ZONE_KIND[z] === 'sea')
+
+// If this device is a remote guest, mirror the action to the host's inbox (and
+// keep the optimistic local result on screen until the host echoes it back).
+// Returns true when sent (still run the local logic for instant feedback).
+function sendRemote(get: () => GameStore, type: string, payload?: any): boolean {
+  const o = get().online
+  if (o?.role === 'guest') { mp.act(o.code, o.nation, o.pin, { type, payload }); markGuestDirty(); return true }
+  return false
+}
 import { writeSave, readSave } from '../engine/saves'
 
 const SPY_POINT_COST = 5
+const FACTORY_COST = 15      // IPC to build a new factory
+const MAX_FACTORIES_BUILT = 2  // lifetime cap of new factories per nation
 const CODE_BREAKING_COST = 20
 const ENCRYPTION_COST = 10
 
@@ -218,7 +248,8 @@ type GameStore = {
   submitOrder: (order: Omit<MoveOrder, 'id'>) => string | null   // returns error string or null
   removeOrder: (nation: Nation, orderId: string) => void
   lockOrders: (nation: Nation) => void
-  confirmPurchase: (nation: Nation, cart: Record<string, number>, factoryId: string) => string | null
+  confirmPurchase: (nation: Nation, cart: Record<string, number>, factoryId: string, navalDeliverTo?: string) => string | null
+  buildFactory: (nation: Nation, territoryId: string) => string | null
   buyTech: (nation: Nation, branch: keyof import('../data/types').TechLevels) => string | null
   noteStrategy: (nation: Nation, text: string) => void
   advancePhase: () => void
@@ -227,6 +258,12 @@ type GameStore = {
   submitSpyOrder: (spy: Nation, target: Nation, points: number) => string | null
   clearSpyOrders: (spy: Nation) => void
   buyIntel: (nation: Nation, kind: 'codeBreaking' | 'encryption') => string | null
+
+  // Online multiplayer
+  online: OnlineSession | null
+  setOnline: (s: OnlineSession | null) => void
+  setGameFromView: (state: GameState) => void
+  applyRemoteAction: (nation: Nation, action: { type: string; payload?: any }) => void
 }
 
 const DEFAULT_NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
@@ -272,6 +309,7 @@ export const useGameStore = create<GameStore>()(
     orderingNation: null,
     pendingMove: null,
     moveMessage: null,
+    online: null,
 
     initGame: (playerConfig, aiDifficulty = 'normal', name = 'New War') => {
       const territories = initTerritories()
@@ -289,6 +327,7 @@ export const useGameStore = create<GameStore>()(
           techLevels: { land: 0, air: 0, naval: 0, industry: 0 },
           codeBreaking: false,
           encryption: false,
+          factoriesBuilt: 0,
         }
       }
 
@@ -338,12 +377,13 @@ export const useGameStore = create<GameStore>()(
       if (!state) return false
       // Back-fill fields added after older saves were written.
       if (!state.warRequests) state.warRequests = []
+      for (const p of Object.values(state.players)) if (p.factoriesBuilt == null) p.factoriesBuilt = 0
       set(s => { s.game = state; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null })
       return true
     },
 
     endWar: () => set(s => {
-      s.game = null; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null
+      s.game = null; s.selectedZoneId = null; s.orderingNation = null; s.pendingMove = null; s.moveMessage = null; s.online = null
     }),
 
     selectZone: (id) => set(state => { state.selectedZoneId = id }),
@@ -376,6 +416,30 @@ export const useGameStore = create<GameStore>()(
         const proceed = window.confirm(
           'This destination is farther than the units can march in one turn.\n\n' +
           'Issue it as a STANDING ORDER? The units will keep advancing automatically each turn until they arrive — or press Cancel to pick a nearer zone.')
+        if (!proceed) { set(s => { s.pendingMove = null }); return null }
+      }
+
+      // Amphibious crossing: if reaching the destination means ferrying land
+      // units over open sea, name the Transport being dedicated (or bail out
+      // with clear guidance when there is no ship to carry them).
+      const destName = (game.territories[dest] ?? game.seaZones[dest])?.nameEN ?? dest
+      let transportZoneName: string | null = null
+      let transportBlocked: string | null = null
+      for (const [unit, count] of Object.entries(pendingMove.picks)) {
+        if (count <= 0) continue
+        const plan = evaluateMove(game, orderingNation, pendingMove.source, dest, unit)
+        if (plan.transportZone) transportZoneName = game.seaZones[plan.transportZone]?.nameEN ?? plan.transportZone
+        else if (plan.needsTransport && !plan.ok) transportBlocked = plan.reason ?? 'A Transport is needed to cross the sea.'
+      }
+      if (transportBlocked && !transportZoneName && typeof window !== 'undefined') {
+        set(s => { s.pendingMove = null; s.moveMessage = `⚓ ${transportBlocked}` })
+        return transportBlocked
+      }
+      if (transportZoneName && typeof window !== 'undefined') {
+        const proceed = window.confirm(
+          `⚓ Amphibious assault on ${destName}.\n\n` +
+          `Your troops will load onto the Transport in ${transportZoneName}, cross, and land at ${destName}.\n\n` +
+          'Dedicate that transport and proceed? (Cancel to pick another move.)')
         if (!proceed) { set(s => { s.pendingMove = null }); return null }
       }
 
@@ -437,6 +501,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     submitOrder: (order) => {
+      sendRemote(get, 'submitOrder', order)
       const { game } = get()
       if (!game) return 'No game'
       if (game.phase !== 'orders') return 'Not in orders phase'
@@ -472,18 +537,25 @@ export const useGameStore = create<GameStore>()(
       return null
     },
 
-    removeOrder: (nation, orderId) => set(state => {
-      const g = state.game
-      if (!g || g.lockedNations.includes(nation)) return
-      g.orders[nation] = (g.orders[nation] ?? []).filter(o => o.id !== orderId)
-    }),
+    removeOrder: (nation, orderId) => {
+      sendRemote(get, 'removeOrder', { orderId })
+      set(state => {
+        const g = state.game
+        if (!g || g.lockedNations.includes(nation)) return
+        g.orders[nation] = (g.orders[nation] ?? []).filter(o => o.id !== orderId)
+      })
+    },
 
-    lockOrders: (nation) => set(state => {
-      const g = state.game
-      if (g && !g.lockedNations.includes(nation)) g.lockedNations.push(nation)
-    }),
+    lockOrders: (nation) => {
+      sendRemote(get, 'lockOrders')
+      set(state => {
+        const g = state.game
+        if (g && !g.lockedNations.includes(nation)) g.lockedNations.push(nation)
+      })
+    },
 
-    confirmPurchase: (nation, cart, factoryId) => {
+    confirmPurchase: (nation, cart, factoryId, navalDeliverTo) => {
+      sendRemote(get, 'confirmPurchase', { cart, factoryId, navalDeliverTo })
       const { game } = get()
       if (!game) return 'No game'
       const player = game.players[nation]
@@ -491,6 +563,16 @@ export const useGameStore = create<GameStore>()(
       if (cost > player.ipc) return 'Not enough IPC'
       const factory = game.territories[factoryId]
       if (!factory || !factory.hasFactory || factory.owner !== nation) return 'Invalid factory'
+
+      // Naval vessels must be built at a coastal factory and launch into an
+      // adjacent sea zone (they can't sit on land). Auto-pick a sea if none given.
+      const buildingNavy = Object.entries(cart).some(([uid, n]) => n > 0 && isNavyUnit(uid))
+      const seas = coastalSeas(factoryId)
+      let deliverSea: string | undefined
+      if (buildingNavy) {
+        if (seas.length === 0) return `${factory.nameEN} is inland — it cannot build naval vessels`
+        deliverSea = navalDeliverTo && seas.includes(navalDeliverTo) ? navalDeliverTo : seas[0]
+      }
 
       set(state => {
         const g = state.game!
@@ -500,8 +582,32 @@ export const useGameStore = create<GameStore>()(
           if (count > 0) g.productionQueues[nation].push({
             unit: uid, count, factory: factoryId,
             turnsRemaining: UNIT_TYPES[uid]?.buildTime ?? 1,
+            deliverTo: isNavyUnit(uid) ? deliverSea : undefined,
           })
         }
+      })
+      return null
+    },
+
+    buildFactory: (nation, territoryId) => {
+      sendRemote(get, 'buildFactory', { territoryId })
+      const { game } = get()
+      if (!game) return 'No game'
+      const player = game.players[nation]
+      if ((player.factoriesBuilt ?? 0) >= MAX_FACTORIES_BUILT) return `Factory limit reached (max ${MAX_FACTORIES_BUILT})`
+      if (player.ipc < FACTORY_COST) return `Costs ${FACTORY_COST} IPC — ${nation} has ${player.ipc}`
+      const t = game.territories[territoryId]
+      if (!t || t.owner !== nation) return 'Must be your own territory'
+      if (t.hasFactory) return 'That territory already has a factory'
+
+      set(state => {
+        const g = state.game!
+        g.players[nation].ipc -= FACTORY_COST
+        g.players[nation].factoriesBuilt = (g.players[nation].factoriesBuilt ?? 0) + 1
+        const terr = g.territories[territoryId]
+        terr.hasFactory = true
+        if (!terr.factoryCity) terr.factoryCity = terr.nameEN
+        g.chronicle.push({ round: g.round, kind: 'power', text: `${nation} built a new war factory in ${terr.nameEN}` })
       })
       return null
     },
@@ -512,6 +618,7 @@ export const useGameStore = create<GameStore>()(
     }),
 
     buyTech: (nation, branch) => {
+      sendRemote(get, 'buyTech', { branch })
       const { game } = get()
       if (!game) return 'No game'
       const player = game.players[nation]
@@ -527,6 +634,7 @@ export const useGameStore = create<GameStore>()(
 
     // ── Diplomacy commands ──────────────────────────────────────────────────
     applyDiplomacyCommand: (text) => {
+      sendRemote(get, 'diplomacy', { text })
       const { game } = get()
       if (!game) return 'No game'
       const parsed = parseCommand(text)
@@ -572,6 +680,7 @@ export const useGameStore = create<GameStore>()(
 
     // ── Espionage ───────────────────────────────────────────────────────────
     submitSpyOrder: (spy, target, points) => {
+      sendRemote(get, 'spy', { target, points })
       const { game } = get()
       if (!game) return 'No game'
       if (points <= 0) return 'Allocate at least 1 point'
@@ -587,15 +696,19 @@ export const useGameStore = create<GameStore>()(
       return null
     },
 
-    clearSpyOrders: (spy) => set(state => {
-      const g = state.game
-      if (!g) return
-      // Refund and remove this nation's spy orders
-      for (const so of g.spyOrders.filter(s => s.spy === spy)) g.players[spy].ipc += so.points * SPY_POINT_COST
-      g.spyOrders = g.spyOrders.filter(s => s.spy !== spy)
-    }),
+    clearSpyOrders: (spy) => {
+      sendRemote(get, 'clearSpy')
+      set(state => {
+        const g = state.game
+        if (!g) return
+        // Refund and remove this nation's spy orders
+        for (const so of g.spyOrders.filter(s => s.spy === spy)) g.players[spy].ipc += so.points * SPY_POINT_COST
+        g.spyOrders = g.spyOrders.filter(s => s.spy !== spy)
+      })
+    },
 
     buyIntel: (nation, kind) => {
+      sendRemote(get, 'buyIntel', { kind })
       const { game } = get()
       if (!game) return 'No game'
       const player = game.players[nation]
@@ -608,6 +721,35 @@ export const useGameStore = create<GameStore>()(
         g.players[nation][kind] = true
       })
       return null
+    },
+
+    // ── Online multiplayer ──────────────────────────────────────────────────
+    setOnline: (s) => set(state => { state.online = s }),
+
+    // A guest replaces its whole game with the host's freshly published view,
+    // unless it has just acted (keep the optimistic local state a moment longer).
+    setGameFromView: (view) => set(state => {
+      if (guestIsDirty()) return
+      state.game = view
+    }),
+
+    // The host applies one queued action from a remote player, for that player's
+    // own nation, through the very same validated logic a local game uses.
+    applyRemoteAction: (nation, action) => {
+      const s = get()
+      const p = action.payload ?? {}
+      switch (action.type) {
+        case 'submitOrder': s.submitOrder({ ...p, nation }); break
+        case 'removeOrder': s.removeOrder(nation, p.orderId); break
+        case 'lockOrders': s.lockOrders(nation); break
+        case 'confirmPurchase': s.confirmPurchase(nation, p.cart, p.factoryId, p.navalDeliverTo); break
+        case 'buildFactory': s.buildFactory(nation, p.territoryId); break
+        case 'buyTech': s.buyTech(nation, p.branch); break
+        case 'diplomacy': s.applyDiplomacyCommand(p.text); break
+        case 'spy': s.submitSpyOrder(nation, p.target, p.points); break
+        case 'clearSpy': s.clearSpyOrders(nation); break
+        case 'buyIntel': s.buyIntel(nation, p.kind); break
+      }
     },
 
     advancePhase: () => set(state => {
@@ -834,10 +976,15 @@ export const useGameStore = create<GameStore>()(
           for (const item of queue ?? []) {
             item.turnsRemaining -= 1
             if (item.turnsRemaining <= 0) {
-              const t = g.territories[item.factory]
-              if (t && t.owner === nation) {
-                if (!t.units[nation]) t.units[nation] = {} as Record<string, number>
-                t.units[nation][item.unit] = (t.units[nation][item.unit] ?? 0) + item.count
+              const factory = g.territories[item.factory]
+              if (factory && factory.owner === nation) {
+                // Naval vessels launch into their chosen sea zone; everything
+                // else deploys at the factory. Fall back to the factory if the
+                // sea zone is somehow missing.
+                const isNavy = isNavyUnit(item.unit)
+                const dest = isNavy && item.deliverTo ? (g.seaZones[item.deliverTo] ?? factory) : factory
+                if (!dest.units[nation]) dest.units[nation] = {} as Record<string, number>
+                dest.units[nation][item.unit] = (dest.units[nation][item.unit] ?? 0) + item.count
               }
             } else {
               remaining.push(item)
