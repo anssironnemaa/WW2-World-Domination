@@ -7,8 +7,18 @@
 // on a single machine. The in-memory store does NOT work across Vercel's
 // stateless function instances — production requires the KV env vars.
 
-const URL = process.env.KV_REST_API_URL
-const TOKEN = process.env.KV_REST_API_TOKEN
+// Find the Upstash-compatible REST endpoint + token from the environment.
+// Different integrations (Vercel KV, Upstash Marketplace) and optional custom
+// prefixes name these differently, so match by suffix — e.g. KV_REST_API_URL,
+// UPSTASH_REDIS_REST_URL, or STORAGE_KV_REST_API_URL all end the same way.
+function findEnv(...suffixes: string[]): string | undefined {
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v && suffixes.some(s => k.endsWith(s))) return v
+  }
+  return undefined
+}
+const URL = findEnv('KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL', 'REDIS_REST_URL')
+const TOKEN = findEnv('KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN', 'REDIS_REST_TOKEN')
 export const kvConfigured = !!(URL && TOKEN)
 
 // ── In-memory fallback ────────────────────────────────────────────────────────
