@@ -1,4 +1,6 @@
-import { NATION_COLORS } from '../../store/gameStore'
+import { useState } from 'react'
+import { NATION_COLORS, useGameStore } from '../../store/gameStore'
+import { UNIT_TYPES } from '../../data/units'
 import type { Territory, SeaZone, Nation } from '../../data/types'
 
 type Props = {
@@ -131,29 +133,90 @@ export function TerritoryPanel({ territory, seaZone, onClose }: Props) {
         </div>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 0 }}>
-        <button style={{
-          flex: 1, padding: '9px 0', border: 'none',
-          background: '#c8a830', color: '#0d0d0d',
-          fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
-          cursor: 'pointer',
-        }}>
-          ISSUE ORDER
-        </button>
-        <div style={{ width: 1, background: '#0d0d0d' }} />
-        <button style={{
-          width: 90, padding: '9px 0', border: 'none',
-          background: '#1e1e1e', color: '#888',
-          fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
-          cursor: 'pointer',
-          borderLeft: '1px solid #2a2a2a',
-        }}>
-          DEFEND
-        </button>
-      </div>
+      {/* Move planner (orders phase, own territory) */}
+      <MovePlanner zoneId={zone.id} owner={t?.owner ?? null} />
     </div>
   )
+}
+
+function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }) {
+  const game = useGameStore(s => s.game)
+  const orderingNation = useGameStore(s => s.orderingNation)
+  const pendingMove = useGameStore(s => s.pendingMove)
+  const beginMove = useGameStore(s => s.beginMove)
+  const [picks, setPicks] = useState<Record<string, number>>({})
+
+  if (!game || game.phase !== 'orders' || !orderingNation) return null
+  if (owner !== orderingNation) {
+    return (
+      <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>
+        {owner ? `${owner} territory — not yours to command` : 'Inspect only'}
+      </div>
+    )
+  }
+
+  const zone = game.territories[zoneId] ?? game.seaZones[zoneId]
+  const myUnits = Object.entries(zone?.units[orderingNation] ?? {}).filter(([, n]) => n > 0)
+  // Units already committed to pending orders from this zone
+  const committed: Record<string, number> = {}
+  for (const o of game.orders[orderingNation] ?? []) {
+    if (o.from === zoneId) committed[o.unit] = (committed[o.unit] ?? 0) + o.count
+  }
+
+  if (myUnits.length === 0) {
+    return <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>No movable units here.</div>
+  }
+
+  const totalPicked = Object.values(picks).reduce((s, n) => s + n, 0)
+  const avail = (uid: string) => (zone!.units[orderingNation]![uid] ?? 0) - (committed[uid] ?? 0) - (picks[uid] ?? 0)
+  const inc = (uid: string) => { if (avail(uid) > 0) setPicks(p => ({ ...p, [uid]: (p[uid] ?? 0) + 1 })) }
+  const dec = (uid: string) => setPicks(p => { const v = (p[uid] ?? 0) - 1; const n = { ...p }; if (v <= 0) delete n[uid]; else n[uid] = v; return n })
+
+  const start = () => {
+    if (totalPicked === 0) return
+    beginMove(zoneId, picks)
+    setPicks({})
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 12px' }}>
+      <div style={{ fontSize: 10, color: '#c8a830', fontWeight: 'bold', letterSpacing: 1, marginBottom: 6 }}>PLAN SECRET MOVE</div>
+      {myUnits.map(([uid, count]) => {
+        const committedHere = committed[uid] ?? 0
+        return (
+          <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{ flex: 1, fontSize: 11, color: '#ddd' }}>
+              {UNIT_TYPES[uid]?.nameFI ?? uid} <span style={{ color: '#666' }}>({count}{committedHere ? ` · ${committedHere} moving` : ''})</span>
+            </div>
+            <button onClick={() => dec(uid)} disabled={(picks[uid] ?? 0) === 0} style={stepBtn((picks[uid] ?? 0) === 0)}>−</button>
+            <span style={{ minWidth: 16, textAlign: 'center', fontSize: 12, fontWeight: 'bold', color: (picks[uid] ?? 0) > 0 ? '#ffe066' : '#555' }}>{picks[uid] ?? ''}</span>
+            <button onClick={() => inc(uid)} disabled={avail(uid) <= 0} style={stepBtn(avail(uid) <= 0)}>+</button>
+          </div>
+        )
+      })}
+      <button
+        onClick={start}
+        disabled={totalPicked === 0 || !!pendingMove}
+        style={{
+          width: '100%', marginTop: 6, padding: '8px 0', borderRadius: 4, border: 'none',
+          background: totalPicked > 0 && !pendingMove ? '#c8a830' : '#333',
+          color: totalPicked > 0 && !pendingMove ? '#0d0d0d' : '#666',
+          fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
+          cursor: totalPicked > 0 && !pendingMove ? 'pointer' : 'not-allowed',
+        }}
+      >
+        {pendingMove ? 'CHOOSE DESTINATION ON MAP…' : `🎯 SELECT DESTINATION (${totalPicked})`}
+      </button>
+    </div>
+  )
+}
+
+function stepBtn(disabled: boolean): React.CSSProperties {
+  return {
+    width: 22, height: 22, borderRadius: 4, border: `1px solid ${disabled ? '#333' : '#c8a830'}`,
+    background: disabled ? '#1a1a1a' : 'rgba(200,168,48,0.15)', color: disabled ? '#555' : '#ffe066',
+    cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, lineHeight: '18px', padding: 0,
+  }
 }
 
 function SmallBadge({ label, color }: { label: string; color: string }) {

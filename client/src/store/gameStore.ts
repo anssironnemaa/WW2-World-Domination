@@ -7,6 +7,7 @@ import { UNIT_TYPES } from '../data/units'
 import { resolveBattle, type BattleResult, type Force } from '../engine/combat'
 import { parseCommand } from '../engine/diplomacy'
 import { resolveEspionage } from '../engine/espionage'
+import { roundToDate } from '../data/calendar'
 
 const SPY_POINT_COST = 5
 const CODE_BREAKING_COST = 20
@@ -188,13 +189,23 @@ function checkVictory(g: GameState): void {
   }
 }
 
+type PendingMove = { source: string; picks: Record<string, number> }
+
 type GameStore = {
   game: GameState | null
   selectedZoneId: string | null
   nationColors: Record<Nation, string>
+  // In-map secret order UI state
+  orderingNation: Nation | null            // whose turn it is to issue secret orders
+  pendingMove: PendingMove | null          // when set, the next zone click is the destination
 
   initGame: (playerConfig: Record<Nation, { type: PlayerType; pin: string }>, aiDifficulty?: AiDifficulty) => void
   selectZone: (id: string | null) => void
+  handleZoneClick: (id: string | null) => void   // routes to select or move-destination
+  setOrderingNation: (n: Nation | null) => void
+  beginMove: (source: string, picks: Record<string, number>) => void
+  completeMove: (dest: string) => string | null
+  cancelMove: () => void
   calculateIncome: (nation: Nation) => number
 
   submitOrder: (order: Omit<MoveOrder, 'id'>) => string | null   // returns error string or null
@@ -216,6 +227,8 @@ export const useGameStore = create<GameStore>()(
     game: null,
     selectedZoneId: null,
     nationColors: NATION_COLORS,
+    orderingNation: null,
+    pendingMove: null,
 
     initGame: (playerConfig, aiDifficulty = 'normal') => {
       const territories = initTerritories()
@@ -260,11 +273,51 @@ export const useGameStore = create<GameStore>()(
           victoryType: null,
           chronicle: [],
           aiDifficulty,
+          history: [],
+          revealedArrows: [],
+          revealedBattles: [],
         }
       })
     },
 
     selectZone: (id) => set(state => { state.selectedZoneId = id }),
+
+    setOrderingNation: (n) => set(state => {
+      state.orderingNation = n
+      state.pendingMove = null
+    }),
+
+    beginMove: (source, picks) => set(state => {
+      state.pendingMove = { source, picks }
+    }),
+
+    cancelMove: () => set(state => { state.pendingMove = null }),
+
+    completeMove: (dest) => {
+      const { pendingMove, orderingNation, submitOrder } = get()
+      if (!pendingMove || !orderingNation) return 'No move in progress'
+      if (dest === pendingMove.source) { set(s => { s.pendingMove = null }); return null }
+      let firstError: string | null = null
+      for (const [unit, count] of Object.entries(pendingMove.picks)) {
+        if (count <= 0) continue
+        const err = submitOrder({ nation: orderingNation, from: pendingMove.source, to: dest, unit, count })
+        if (err && !firstError) firstError = err
+      }
+      set(s => { s.pendingMove = null })
+      return firstError
+    },
+
+    // Map click router: while planning a move, the next click picks the destination;
+    // otherwise it just selects the zone for inspection.
+    handleZoneClick: (id) => {
+      const { pendingMove } = get()
+      if (pendingMove && id) {
+        get().completeMove(id)
+        set(s => { s.selectedZoneId = id })
+        return
+      }
+      set(s => { s.selectedZoneId = id })
+    },
 
     calculateIncome: (nation) => {
       const { game } = get()
@@ -425,9 +478,13 @@ export const useGameStore = create<GameStore>()(
       const idx = PHASE_ORDER.indexOf(g.phase)
       const next = PHASE_ORDER[(idx + 1) % PHASE_ORDER.length]
 
-      // ── Entering reveal → resolve espionage against locked orders ─────────
+      // ── Entering reveal → resolve espionage, snapshot arrows for the map ──
       if (next === 'reveal') {
         g.spyReports = resolveEspionage(g.round, g.spyOrders, g.orders, g.players)
+        // Persist the revealed movements so the arrows stay on the map (through the
+        // rest of this round and the next round's planning) until the NEXT reveal.
+        g.revealedArrows = (Object.values(g.orders).flat().filter(Boolean) as MoveOrder[]).map(o => ({ ...o }))
+        g.revealedBattles = []
       }
 
       // ── Leaving reveal → apply all movements ─────────────────────────────
@@ -520,6 +577,8 @@ export const useGameStore = create<GameStore>()(
         }
         // Territory ownership may have changed — evaluate victory conditions.
         checkVictory(g)
+        // Battle-site markers for the map (persist until the next reveal).
+        g.revealedBattles = g.battleReports.map(b => ({ zoneId: b.zoneId, winner: b.winner }))
       }
 
       // ── Entering income → collect IPC, advance production ────────────────
@@ -545,9 +604,40 @@ export const useGameStore = create<GameStore>()(
         const vcLeader = (Object.entries(vcTally) as [Nation, number][]).sort((a, b) => b[1] - a[1])[0]
         g.chronicle.push({
           round: g.round, kind: 'power',
-          text: `By round ${g.round}, ${ipcLeader} led in production (${g.players[ipcLeader].ipc} IPC)` +
+          text: `By ${roundToDate(g.round).long}, ${ipcLeader} led in production (${g.players[ipcLeader].ipc} IPC)` +
             (vcLeader ? `; ${vcLeader[0]} held the most Victory Cities (${vcLeader[1]})` : ''),
         })
+
+        // ── Statistics snapshot for this round ──────────────────────────────
+        const allZones = [...Object.values(g.territories), ...Object.values(g.seaZones)]
+        const losses: Partial<Record<Nation, number>> = {}
+        for (const b of g.battleReports) {
+          for (const r of b.rounds) {
+            losses[b.attacker] = (losses[b.attacker] ?? 0) + Object.values(r.attackerLosses).reduce((s, n) => s + n, 0)
+            losses[b.defender] = (losses[b.defender] ?? 0) + Object.values(r.defenderLosses).reduce((s, n) => s + n, 0)
+          }
+        }
+        const perNation: Partial<Record<Nation, import('../data/types').NationStat>> = {}
+        for (const nation of DEFAULT_NATIONS) {
+          let territories = 0
+          for (const t of Object.values(g.territories)) if (t.owner === nation) territories++
+          let units = 0
+          for (const z of allZones) {
+            const u = z.units[nation]
+            if (u) units += Object.values(u).reduce((s, n) => s + n, 0)
+          }
+          perNation[nation] = {
+            ipc: g.players[nation].ipc,
+            income: g.incomeReport[nation] ?? 0,
+            territories,
+            vcs: vcTally[nation] ?? 0,
+            units,
+            losses: losses[nation] ?? 0,
+          }
+        }
+        const ownership: Record<string, Nation> = {}
+        for (const t of Object.values(g.territories)) ownership[t.id] = t.owner
+        g.history.push({ round: g.round, perNation, ownership })
 
         // Advance production queues; deploy finished units at their factory
         for (const [nationStr, queue] of Object.entries(g.productionQueues)) {
@@ -583,6 +673,9 @@ export const useGameStore = create<GameStore>()(
       }
 
       g.phase = next
+      // Reset in-map ordering state whenever the phase changes.
+      state.orderingNation = null
+      state.pendingMove = null
     }),
   }))
 )

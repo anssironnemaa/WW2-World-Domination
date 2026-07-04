@@ -136,6 +136,23 @@ export type ChronicleEntry = {
   text: string
 }
 
+// Per-nation figures captured at the end of each round, for the statistics page
+// and the war-room front map.
+export type NationStat = {
+  ipc: number
+  income: number
+  territories: number
+  vcs: number
+  units: number       // total units on the map
+  losses: number      // units lost in battle this round
+}
+
+export type RoundSnapshot = {
+  round: number
+  perNation: Partial<Record<Nation, NationStat>>
+  ownership: Record<string, Nation>   // territory id → owner, for the war-room front map
+}
+
 // ── Espionage ─────────────────────────────────────────────────────────────────
 export type SpyOrder = {
   spy: Nation            // spending nation
@@ -179,4 +196,10 @@ export type GameState = {
   // War history
   chronicle: ChronicleEntry[]
   aiDifficulty: AiDifficulty
+  // Statistics — one snapshot per completed round
+  history: RoundSnapshot[]
+  // Last revealed movements/battles — persist on the map from reveal until the
+  // next reveal replaces them (so players can study them while planning).
+  revealedArrows: MoveOrder[]
+  revealedBattles: { zoneId: string; winner: 'attacker' | 'defender' | 'draw' }[]
 }

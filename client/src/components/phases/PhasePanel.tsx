@@ -3,6 +3,7 @@ import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { UNIT_TYPES } from '../../data/units'
 import { requestAiMove, type AiResult } from '../../engine/ai'
 import { requestBulletin, requestBattleNarration, type NarrativeResult } from '../../engine/narrative'
+import { roundToDate } from '../../data/calendar'
 import type { Nation } from '../../data/types'
 
 const NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
@@ -64,7 +65,7 @@ export function PhasePanel() {
               cursor: (allLocked || game.phase !== 'orders') ? 'pointer' : 'not-allowed',
             }}
           >
-            {game.phase === 'income' ? `▶ START ROUND ${game.round + 1}` : '▶ NEXT PHASE'}
+            {game.phase === 'income' ? `▶ ADVANCE TO ${roundToDate(game.round + 1).short}` : '▶ NEXT PHASE'}
           </button>
         </div>
       )}
@@ -78,6 +79,7 @@ function OrdersEditor() {
   const submitOrder = useGameStore(s => s.submitOrder)
   const removeOrder = useGameStore(s => s.removeOrder)
   const lockOrders = useGameStore(s => s.lockOrders)
+  const setOrderingNation = useGameStore(s => s.setOrderingNation)
 
   const [nation, setNation] = useState<Nation | null>(null)
   const [pin, setPin] = useState('')
@@ -113,10 +115,11 @@ function OrdersEditor() {
 
   const selectNation = (n: Nation) => {
     setNation(n); setPin(''); setPinOk(false); setError(''); setFrom(''); setUnit(''); setTo('')
+    setOrderingNation(null)
   }
 
   const tryPin = () => {
-    if (nation && pin === game.players[nation].pin) { setPinOk(true); setError('') }
+    if (nation && pin === game.players[nation].pin) { setPinOk(true); setError(''); setOrderingNation(nation) }
     else setError('Wrong PIN')
   }
 
@@ -223,7 +226,7 @@ function OrdersEditor() {
             </div>
           )}
 
-          <button onClick={() => { lockOrders(nation); setPinOk(false) }} style={{
+          <button onClick={() => { lockOrders(nation); setPinOk(false); setOrderingNation(null) }} style={{
             padding: '7px 0', borderRadius: 3, border: '1px solid #c8a830',
             background: 'transparent', color: '#c8a830', fontWeight: 'bold',
             fontSize: 11, letterSpacing: 1, cursor: 'pointer',

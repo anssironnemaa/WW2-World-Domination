@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { requestHistory, type NarrativeResult } from '../../engine/narrative'
+import { roundToDate } from '../../data/calendar'
 
 // Full-screen victory screen. Auto-generates the full AI-written war history
 // (Gemini, with template fallback) the moment a winner is declared.
@@ -39,7 +40,7 @@ export function GameOverOverlay() {
         background: 'linear-gradient(180deg, rgba(20,22,28,0.9), rgba(10,12,16,0.95))',
         boxShadow: `0 0 60px ${color}33`,
       }}>
-        <div style={{ fontSize: 11, letterSpacing: 4, color: '#888' }}>ROUND {game.round} · THE WAR IS DECIDED</div>
+        <div style={{ fontSize: 11, letterSpacing: 4, color: '#888' }}>{roundToDate(game.round).long.toUpperCase()} · THE WAR IS DECIDED</div>
         <div style={{ fontSize: 30, fontWeight: 'bold', color, letterSpacing: 2, margin: '14px 0 6px' }}>{title}</div>
         <div style={{ fontSize: 12, color: '#999', marginBottom: 24, textTransform: 'uppercase', letterSpacing: 2 }}>
           {game.victoryType === 'alliance'

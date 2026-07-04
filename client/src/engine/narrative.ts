@@ -1,8 +1,9 @@
 // Client-side narrative driver: turns the round's mechanical results into a
 // factual event list and asks /api/narrative to render it as prose.
 import type { GameState, Nation } from '../data/types'
+import { roundToDate } from '../data/calendar'
 
-export type NarrativeKind = 'bulletin' | 'battle' | 'documentary' | 'history'
+export type NarrativeKind = 'bulletin' | 'battle' | 'documentary' | 'history' | 'chapter'
 export type NarrativeResult = { text: string; source: 'gemini' | 'mock' }
 
 // Factual one-liners describing every battle this round.
@@ -34,18 +35,18 @@ async function post(body: unknown): Promise<NarrativeResult> {
 
 export function requestBulletin(game: GameState): Promise<NarrativeResult> {
   const events = [...battleEvents(game), ...incomeEvents(game)]
-  return post({ kind: 'bulletin', round: game.round, events })
+  return post({ kind: 'bulletin', round: game.round, dateLabel: roundToDate(game.round).long, events })
 }
 
 export function requestBattleNarration(game: GameState, zoneId: string): Promise<NarrativeResult> {
   const b = game.battleReports.find(r => r.zoneId === zoneId)
   const events = b ? b.log : []
-  return post({ kind: 'battle', round: game.round, events, focus: b?.zoneName })
+  return post({ kind: 'battle', round: game.round, dateLabel: roundToDate(game.round).long, events, focus: b?.zoneName })
 }
 
 export function requestDocumentary(game: GameState, victor?: Nation): Promise<NarrativeResult> {
   const events = battleEvents(game)
-  return post({ kind: 'documentary', round: game.round, events, focus: victor })
+  return post({ kind: 'documentary', round: game.round, dateLabel: roundToDate(game.round).long, events, focus: victor })
 }
 
 // Full-game war history: merge the chronicle (battles, conquests, power shifts)
@@ -65,10 +66,20 @@ export function requestHistory(game: GameState, victor?: Nation): Promise<Narrat
     .map(([n, v]) => `${n}: ${v} VCs, ${game.players[n]?.ipc ?? 0} IPC`)
 
   const events = [
-    ...timeline.map(e => `R${e.round}: ${e.text}`),
+    ...timeline.map(e => `${roundToDate(e.round).long}: ${e.text}`),
     `Final standings — ${standings.join(' | ')}`,
-    victor ? `Victor: ${victor} (${game.victoryType} victory) after ${game.round} rounds` : '',
+    victor ? `Victor: ${victor} (${game.victoryType} victory) by ${roundToDate(game.round).long}` : '',
   ].filter(Boolean)
 
-  return post({ kind: 'history', round: game.round, events, focus: victor })
+  return post({ kind: 'history', round: game.round, dateLabel: roundToDate(game.round).long, events, focus: victor })
+}
+
+// "The story so far" — a running chronicle narrative for the events page (mid-war).
+export function requestChapter(game: GameState): Promise<NarrativeResult> {
+  const timeline = [
+    ...game.chronicle.map(c => ({ round: c.round, text: c.text })),
+    ...game.diplomacyLog.map(d => ({ round: d.round, text: `Treaty — ${d.text}` })),
+  ].sort((a, b) => a.round - b.round)
+  const events = timeline.map(e => `${roundToDate(e.round).long}: ${e.text}`)
+  return post({ kind: 'chapter', round: game.round, dateLabel: roundToDate(game.round).long, events })
 }

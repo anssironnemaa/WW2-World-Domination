@@ -1,4 +1,5 @@
 import { useGameStore } from '../../store/gameStore'
+import { roundToDate } from '../../data/calendar'
 
 const PHASE_LABELS: Record<string, string> = {
   diplomacy: 'PHASE 1 · DIPLOMACY',
@@ -9,17 +10,12 @@ const PHASE_LABELS: Record<string, string> = {
   collect: 'PHASE 6 · COLLECT',
 }
 
-const YEAR_BY_ROUND: Record<number, string> = {
-  1: 'SEP 1939', 2: 'JAN 1940', 3: 'APR 1940', 4: 'JUL 1940',
-  5: 'OCT 1940', 6: 'JAN 1941', 7: 'APR 1941', 8: 'JUL 1941',
-}
-
 export function TopBar() {
   const game = useGameStore(s => s.game)
   if (!game) return null
 
   const phaseLabel = PHASE_LABELS[game.phase] ?? game.phase.toUpperCase()
-  const dateLabel = YEAR_BY_ROUND[game.round] ?? `R${String(game.round).padStart(2, '0')}`
+  const dateLabel = roundToDate(game.round).short
 
   return (
     <div style={{
@@ -38,8 +34,8 @@ export function TopBar() {
         <span style={{ fontSize: 13, fontWeight: 'bold', color: '#ffe066', letterSpacing: 1 }}>
           WORLD DOMINANCE
         </span>
-        <span style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>
-          R{String(game.round).padStart(2, '0')} · {dateLabel}
+        <span style={{ fontSize: 11, color: '#c8b870', letterSpacing: 1, fontWeight: 'bold' }}>
+          {dateLabel}
         </span>
       </div>
 
