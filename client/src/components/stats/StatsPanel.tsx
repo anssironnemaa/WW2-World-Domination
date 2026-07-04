@@ -33,7 +33,7 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid #222' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>📊 WAR STATISTICS</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {history.length} TURN{history.length === 1 ? '' : 'S'} RECORDED</div>
+          <div style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {history.length} TURN{history.length === 1 ? '' : 'S'} RECORDED</div>
         </div>
         <button onClick={onClose} style={{
           background: 'none', border: '1px solid #444', borderRadius: 4, color: '#ccc',
@@ -51,7 +51,7 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 'bold', color: '#fff' }}>{n === 'USSR' ? 'SOVIET' : n.toUpperCase()}</span>
-                <span style={{ fontSize: 10, color: '#667' }}>#{i + 1}</span>
+                <span style={{ fontSize: 10, color: '#8a96aa' }}>#{i + 1}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: '#aab' }}>
                 <span><b style={{ color: '#ffe066' }}>{current[n].vcs}</b> VC</span>
@@ -66,7 +66,7 @@ export function StatsPanel({ onClose }: { onClose: () => void }) {
         <DiplomacyBlocs game={game} />
 
         {history.length < 1 ? (
-          <div style={{ color: '#667', fontSize: 12, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>
+          <div style={{ color: '#8a96aa', fontSize: 12, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>
             No turns completed yet — statistics appear after the first income phase.
           </div>
         ) : (
@@ -134,14 +134,14 @@ function DiplomacyBlocs({ game }: { game: NonNullable<ReturnType<typeof useGameS
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <div style={box}>
           <div style={{ ...head, color: '#7fc7a0' }}>ALLIANCES</div>
-          {alliances.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>None declared.</div>
+          {alliances.length === 0 ? <div style={{ fontSize: 11, color: '#8a96aa', fontStyle: 'italic' }}>None declared.</div>
             : alliances.map(a => (
               <div key={a.id} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>{a.parties.map(chip)}</div>
             ))}
         </div>
         <div style={box}>
           <div style={{ ...head, color: '#c8a830' }}>NON-AGGRESSION PACTS</div>
-          {pacts.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>None in force.</div>
+          {pacts.length === 0 ? <div style={{ fontSize: 11, color: '#8a96aa', fontStyle: 'italic' }}>None in force.</div>
             : pacts.map(p => (
               <div key={p.id} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                 {p.parties.map(chip)}
@@ -150,8 +150,8 @@ function DiplomacyBlocs({ game }: { game: NonNullable<ReturnType<typeof useGameS
             ))}
         </div>
         <div style={box}>
-          <div style={{ ...head, color: '#8a9bb0' }}>INDEPENDENT</div>
-          {independents.length === 0 ? <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>Every power is entangled.</div>
+          <div style={{ ...head, color: '#a8b6ca' }}>INDEPENDENT</div>
+          {independents.length === 0 ? <div style={{ fontSize: 11, color: '#8a96aa', fontStyle: 'italic' }}>Every power is entangled.</div>
             : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{independents.map(chip)}</div>}
         </div>
       </div>
@@ -176,18 +176,18 @@ function Chart({ metric, history }: { metric: Metric; history: RoundSnapshot[] }
   return (
     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #222', borderRadius: 6, padding: 10 }}>
       <div style={{ fontSize: 12, fontWeight: 'bold', color: '#fff' }}>{metric.label}</div>
-      <div style={{ fontSize: 10, color: '#667', marginBottom: 4 }}>{metric.hint}</div>
+      <div style={{ fontSize: 10, color: '#8a96aa', marginBottom: 4 }}>{metric.hint}</div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }}>
         {/* gridlines + y labels */}
         {yTicks.map((v, i) => (
           <g key={i}>
             <line x1={padL} y1={py(v)} x2={W - padR} y2={py(v)} stroke="#222" strokeWidth={1} />
-            <text x={padL - 4} y={py(v) + 3} textAnchor="end" fontSize={8} fill="#667">{v}</text>
+            <text x={padL - 4} y={py(v) + 3} textAnchor="end" fontSize={8} fill="#8a96aa">{v}</text>
           </g>
         ))}
         {/* x labels (first / last date) */}
-        <text x={px(minR)} y={H - 6} textAnchor="start" fontSize={8} fill="#667">{roundToDate(minR).short}</text>
-        {maxR !== minR && <text x={px(maxR)} y={H - 6} textAnchor="end" fontSize={8} fill="#667">{roundToDate(maxR).short}</text>}
+        <text x={px(minR)} y={H - 6} textAnchor="start" fontSize={8} fill="#8a96aa">{roundToDate(minR).short}</text>
+        {maxR !== minR && <text x={px(maxR)} y={H - 6} textAnchor="end" fontSize={8} fill="#8a96aa">{roundToDate(maxR).short}</text>}
         {/* nation lines */}
         {NATIONS.map(n => {
           const pts = history.map(h => `${px(h.round).toFixed(1)},${py(h.perNation[n]?.[metric.key] ?? 0).toFixed(1)}`)

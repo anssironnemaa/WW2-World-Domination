@@ -80,7 +80,7 @@ export function TerritoryPanel({ territory, seaZone, onClose }: Props) {
           )}
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 14, padding: 0 }}
+            style={{ background: 'none', border: 'none', color: '#858585', cursor: 'pointer', fontSize: 14, padding: 0 }}
           >✕</button>
         </div>
       </div>
@@ -92,7 +92,7 @@ export function TerritoryPanel({ territory, seaZone, onClose }: Props) {
             {topUnits.map(([uid, info]) => {
               const short = UNIT_SHORT[uid] ?? uid.slice(0, 3).toUpperCase()
               const primaryNation = info.nations[0]
-              const color = NATION_COLORS[primaryNation] ?? '#555'
+              const color = NATION_COLORS[primaryNation] ?? '#858585'
               return (
                 <div key={uid} style={{
                   background: color + '22',
@@ -111,7 +111,7 @@ export function TerritoryPanel({ territory, seaZone, onClose }: Props) {
               <div style={{
                 background: '#1e1e1e', border: '1px solid #333',
                 borderRadius: 3, padding: '3px 7px',
-                fontSize: 11, color: '#666',
+                fontSize: 11, color: '#8f8f8f',
               }}>
                 +{Object.entries(unitMap).length - 4}
               </div>
@@ -155,11 +155,11 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
   // any power with a fleet stationed there may order those ships to move.
   if (isSea) {
     if (myUnits.length === 0) {
-      return <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>No fleet of yours in these waters.</div>
+      return <div style={{ padding: '8px 12px', fontSize: 10, color: '#8f8f8f', borderTop: '1px solid #1e1e1e' }}>No fleet of yours in these waters.</div>
     }
   } else if (owner !== orderingNation) {
     return (
-      <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>
+      <div style={{ padding: '8px 12px', fontSize: 10, color: '#8f8f8f', borderTop: '1px solid #1e1e1e' }}>
         {owner ? `${owner} territory — not yours to command` : 'Inspect only'}
       </div>
     )
@@ -171,7 +171,7 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
   }
 
   if (myUnits.length === 0) {
-    return <div style={{ padding: '8px 12px', fontSize: 10, color: '#666', borderTop: '1px solid #1e1e1e' }}>No movable units here.</div>
+    return <div style={{ padding: '8px 12px', fontSize: 10, color: '#8f8f8f', borderTop: '1px solid #1e1e1e' }}>No movable units here.</div>
   }
 
   const totalPicked = Object.values(picks).reduce((s, n) => s + n, 0)
@@ -204,10 +204,10 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
         return (
           <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <div style={{ flex: 1, fontSize: 11, color: '#ddd' }}>
-              {unitName(uid)} <span style={{ color: '#666' }}>· move {UNIT_TYPES[uid]?.move ?? 1} ({count}{committedHere ? ` · ${committedHere} moving` : ''})</span>
+              {unitName(uid)} <span style={{ color: '#8f8f8f' }}>· move {UNIT_TYPES[uid]?.move ?? 1} ({count}{committedHere ? ` · ${committedHere} moving` : ''})</span>
             </div>
             <button onClick={() => dec(uid)} disabled={(picks[uid] ?? 0) === 0} style={stepBtn((picks[uid] ?? 0) === 0)}>−</button>
-            <span style={{ minWidth: 16, textAlign: 'center', fontSize: 12, fontWeight: 'bold', color: (picks[uid] ?? 0) > 0 ? '#ffe066' : '#555' }}>{picks[uid] ?? ''}</span>
+            <span style={{ minWidth: 16, textAlign: 'center', fontSize: 12, fontWeight: 'bold', color: (picks[uid] ?? 0) > 0 ? '#ffe066' : '#858585' }}>{picks[uid] ?? ''}</span>
             <button onClick={() => inc(uid)} disabled={avail(uid) <= 0} style={stepBtn(avail(uid) <= 0)}>+</button>
           </div>
         )
@@ -218,18 +218,18 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
         style={{
           width: '100%', marginTop: 6, padding: '8px 0', borderRadius: 4, border: 'none',
           background: totalPicked > 0 && !pendingMove ? '#c8a830' : '#333',
-          color: totalPicked > 0 && !pendingMove ? '#0d0d0d' : '#666',
+          color: totalPicked > 0 && !pendingMove ? '#0d0d0d' : '#8f8f8f',
           fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
           cursor: totalPicked > 0 && !pendingMove ? 'pointer' : 'not-allowed',
         }}
       >
         {pendingMove ? 'CHOOSE DESTINATION ON MAP…' : `🎯 SELECT DESTINATION (${totalPicked})`}
       </button>
-      <div style={{ fontSize: 9, color: '#667', marginTop: 6, lineHeight: 1.4 }}>
+      <div style={{ fontSize: 10, color: '#8a96aa', marginTop: 6, lineHeight: 1.4 }}>
         Units advance up to their move each turn; farther targets become auto-continuing standing orders. Land units cross open sea only via a Transport, aircraft land at sea only on a Carrier.
       </div>
       {adjacentSeaCapacity.length > 0 && (
-        <div style={{ fontSize: 9, color: '#8ab4d8', marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: '#8ab4d8', marginTop: 4 }}>
           {adjacentSeaCapacity.map((s, i) => (
             <div key={i}>🚢 {s.name}: {s.tp > 0 ? `${s.tp} transport slots` : ''}{s.tp > 0 && s.cv > 0 ? ' · ' : ''}{s.cv > 0 ? `${s.cv} carrier slots` : ''}</div>
           ))}
@@ -242,7 +242,7 @@ function MovePlanner({ zoneId, owner }: { zoneId: string; owner: Nation | null }
 function stepBtn(disabled: boolean): React.CSSProperties {
   return {
     width: 22, height: 22, borderRadius: 4, border: `1px solid ${disabled ? '#333' : '#c8a830'}`,
-    background: disabled ? '#1a1a1a' : 'rgba(200,168,48,0.15)', color: disabled ? '#555' : '#ffe066',
+    background: disabled ? '#1a1a1a' : 'rgba(200,168,48,0.15)', color: disabled ? '#858585' : '#ffe066',
     cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, lineHeight: '18px', padding: 0,
   }
 }

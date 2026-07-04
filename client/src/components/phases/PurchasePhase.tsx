@@ -134,7 +134,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
             </div>
           </div>
           <button onClick={onClose} style={{
-            background: 'none', border: '1px solid #555', borderRadius: 4,
+            background: 'none', border: '1px solid #858585', borderRadius: 4,
             color: '#aaa', cursor: 'pointer', padding: '4px 12px', fontSize: 13,
           }}>✕ Close</button>
         </div>
@@ -144,7 +144,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
           <div style={{ flex: 1, padding: 16, overflowY: 'auto', borderRight: '1px solid #222' }}>
             {(['infantry', 'armor', 'air', 'navy'] as const).map(cat => (
               <div key={cat} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#888', fontWeight: 'bold', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                <div style={{ fontSize: 11, color: '#a2a2a2', fontWeight: 'bold', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
                   {CATEGORY_LABELS[cat]}
                 </div>
                 {(unitsByCategory[cat] ?? []).map(unit => {
@@ -166,7 +166,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                         <div style={{ fontSize: 13, color: '#fff', fontWeight: inCart > 0 ? 'bold' : 'normal' }}>
                           {unitName(unit.id)}
                         </div>
-                        <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: '#a2a2a2', marginTop: 2 }}>
                           Atk {unit.attack} · Def {unit.defend} · Move {unit.move} · {unit.buildTime}mo build
                         </div>
                       </div>
@@ -179,7 +179,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                           disabled={inCart === 0}
                           style={btnStyle('#c0392b', inCart === 0)}
                         >−</button>
-                        <span style={{ minWidth: 20, textAlign: 'center', color: inCart > 0 ? '#ffe066' : '#555', fontWeight: 'bold', fontSize: 14 }}>
+                        <span style={{ minWidth: 20, textAlign: 'center', color: inCart > 0 ? '#ffe066' : '#858585', fontWeight: 'bold', fontSize: 14 }}>
                           {inCart || ''}
                         </span>
                         <button
@@ -204,7 +204,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
               padding: 12,
               border: '1px solid #333',
             }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>BUDGET</div>
+              <div style={{ fontSize: 11, color: '#a2a2a2', marginBottom: 6 }}>BUDGET</div>
               <div style={{ fontSize: 22, fontWeight: 'bold', color: '#ffe066' }}>{budget} IPC</div>
               <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                 <span style={{ color: '#aaa' }}>Spent:</span>
@@ -221,9 +221,9 @@ export function PurchasePhase({ nation, onClose }: Props) {
 
             {/* Factory selector */}
             <div>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>TARGET FACTORY</div>
+              <div style={{ fontSize: 11, color: '#a2a2a2', marginBottom: 6 }}>TARGET FACTORY</div>
               {factories.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>No factories</div>
+                <div style={{ fontSize: 12, color: '#858585', fontStyle: 'italic' }}>No factories</div>
               ) : (
                 factories.map(f => {
                   const cap = f.ipc - f.factoryDamage
@@ -241,7 +241,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                       }}
                     >
                       <div style={{ fontWeight: 'bold' }}>{f.nameFI}</div>
-                      <div style={{ fontSize: 11, color: '#888' }}>Capacity: {cap} units</div>
+                      <div style={{ fontSize: 11, color: '#a2a2a2' }}>Capacity: {cap} units</div>
                     </button>
                   )
                 })
@@ -251,7 +251,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
             {/* Naval delivery — where the ships launch (only when buying navy) */}
             {cartHasNavy && (
               <div>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>🚢 LAUNCH NAVY INTO</div>
+                <div style={{ fontSize: 11, color: '#a2a2a2', marginBottom: 6 }}>🚢 LAUNCH NAVY INTO</div>
                 {!selectedFactory ? (
                   <div style={{ fontSize: 12, color: '#e0b060', fontStyle: 'italic' }}>Pick a factory first.</div>
                 ) : !factoryIsCoastal ? (
@@ -268,13 +268,13 @@ export function PurchasePhase({ nation, onClose }: Props) {
 
             {/* Build a new factory (max 2 per war, on a factory-less owned zone) */}
             <div>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>
-                BUILD FACTORY <span style={{ color: '#667' }}>· {FACTORY_COST} IPC · {MAX_FACTORIES - factoriesBuilt} of {MAX_FACTORIES} left</span>
+              <div style={{ fontSize: 11, color: '#a2a2a2', marginBottom: 6 }}>
+                BUILD FACTORY <span style={{ color: '#8a96aa' }}>· {FACTORY_COST} IPC · {MAX_FACTORIES - factoriesBuilt} of {MAX_FACTORIES} left</span>
               </div>
               {factoriesBuilt >= MAX_FACTORIES ? (
-                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>Factory limit reached.</div>
+                <div style={{ fontSize: 12, color: '#858585', fontStyle: 'italic' }}>Factory limit reached.</div>
               ) : buildableZones.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic' }}>No factory-less territory you own.</div>
+                <div style={{ fontSize: 12, color: '#858585', fontStyle: 'italic' }}>No factory-less territory you own.</div>
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <select value={buildZone} onChange={e => { setBuildZone(e.target.value); setBuildError('') }}
@@ -292,7 +292,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
                     style={{
                       padding: '6px 12px', borderRadius: 5, border: 'none', fontWeight: 'bold', fontSize: 11,
                       background: buildZone && canBuildFactory ? '#6a5a20' : '#333',
-                      color: buildZone && canBuildFactory ? '#ffe066' : '#666',
+                      color: buildZone && canBuildFactory ? '#ffe066' : '#8f8f8f',
                       cursor: buildZone && canBuildFactory ? 'pointer' : 'not-allowed',
                     }}
                   >⚙ BUILD</button>
@@ -304,7 +304,7 @@ export function PurchasePhase({ nation, onClose }: Props) {
             {/* Cart summary */}
             {cartCount > 0 && (
               <div>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>CART</div>
+                <div style={{ fontSize: 11, color: '#a2a2a2', marginBottom: 6 }}>CART</div>
                 <div style={{
                   background: 'rgba(255,255,255,0.04)',
                   borderRadius: 6,
@@ -366,7 +366,7 @@ function btnStyle(color: string, disabled: boolean): React.CSSProperties {
     width: 24, height: 24, borderRadius: 4,
     background: disabled ? '#222' : color + '33',
     border: `1px solid ${disabled ? '#444' : color}`,
-    color: disabled ? '#555' : '#fff',
+    color: disabled ? '#858585' : '#fff',
     cursor: disabled ? 'not-allowed' : 'pointer',
     fontSize: 16, lineHeight: '22px', padding: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',

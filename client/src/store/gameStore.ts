@@ -264,6 +264,19 @@ type GameStore = {
   setOnline: (s: OnlineSession | null) => void
   setGameFromView: (state: GameState) => void
   applyRemoteAction: (nation: Nation, action: { type: string; payload?: any }) => void
+
+  // UI: desktop vs mobile-optimised layout
+  viewMode: 'desktop' | 'mobile'
+  setViewMode: (m: 'desktop' | 'mobile') => void
+}
+
+// Default to mobile on small/touch screens; user can flip it any time.
+function initialViewMode(): 'desktop' | 'mobile' {
+  if (typeof window === 'undefined') return 'desktop'
+  const saved = localStorage.getItem('ww2_view_mode')
+  if (saved === 'mobile' || saved === 'desktop') return saved
+  const small = window.matchMedia?.('(max-width: 820px)').matches
+  return small ? 'mobile' : 'desktop'
 }
 
 const DEFAULT_NATIONS: Nation[] = ['Germany', 'USSR', 'UK', 'USA', 'Japan', 'France', 'Italy']
@@ -310,6 +323,7 @@ export const useGameStore = create<GameStore>()(
     pendingMove: null,
     moveMessage: null,
     online: null,
+    viewMode: initialViewMode(),
 
     initGame: (playerConfig, aiDifficulty = 'normal', name = 'New War') => {
       const territories = initTerritories()
@@ -722,6 +736,11 @@ export const useGameStore = create<GameStore>()(
       })
       return null
     },
+
+    setViewMode: (m) => set(state => {
+      state.viewMode = m
+      if (typeof window !== 'undefined') localStorage.setItem('ww2_view_mode', m)
+    }),
 
     // ── Online multiplayer ──────────────────────────────────────────────────
     setOnline: (s) => set(state => { state.online = s }),

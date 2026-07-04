@@ -41,7 +41,7 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid #222' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>📜 CHRONICLE OF THE WAR</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {timeline.length} EVENTS</div>
+          <div style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>{roundToDate(game.round).long.toUpperCase()} · {timeline.length} EVENTS</div>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: '1px solid #444', borderRadius: 4, color: '#ccc', padding: '6px 14px', cursor: 'pointer', fontSize: 12 }}>✕ CLOSE</button>
       </div>
@@ -57,7 +57,7 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
                 {story.text.split(/\n+/).map((p, i) => <p key={i} style={{ margin: i ? '10px 0 0' : 0 }}>{p}</p>)}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                   <SpeakButton text={story.text} label="📻 BROADCAST TO THE ROOM" />
-                  <span style={{ color: '#667', fontSize: 10 }}>— {story.source === 'gemini' ? 'war chronicle' : 'field notes'}</span>
+                  <span style={{ color: '#8a96aa', fontSize: 10 }}>— {story.source === 'gemini' ? 'war chronicle' : 'field notes'}</span>
                 </div>
               </div>
             ) : (
@@ -70,20 +70,20 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
               </button>
             )}
             {story && story !== 'loading' && (
-              <button onClick={generate} style={{ marginTop: 6, background: 'none', border: 'none', color: '#667', fontSize: 10, cursor: 'pointer' }}>↻ regenerate</button>
+              <button onClick={generate} style={{ marginTop: 6, background: 'none', border: 'none', color: '#8a96aa', fontSize: 10, cursor: 'pointer' }}>↻ regenerate</button>
             )}
           </div>
 
           {/* Timeline */}
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, marginBottom: 8 }}>TIMELINE</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, marginBottom: 8 }}>TIMELINE</div>
           {timeline.length === 0 ? (
-            <div style={{ color: '#667', fontSize: 12, fontStyle: 'italic' }}>No events recorded yet.</div>
+            <div style={{ color: '#8a96aa', fontSize: 12, fontStyle: 'italic' }}>No events recorded yet.</div>
           ) : (
             <div style={{ borderLeft: '2px solid #2a2a2a', paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {timeline.map((e, i) => (
                 <div key={i} style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: -21, top: 2, fontSize: 11 }}>{KIND_ICON[e.kind] ?? '•'}</span>
-                  <div style={{ fontSize: 10, color: '#8a9bb0' }}>{roundToDate(e.round).long}</div>
+                  <div style={{ fontSize: 10, color: '#a8b6ca' }}>{roundToDate(e.round).long}</div>
                   <div style={{ fontSize: 12, color: '#ddd' }}>{highlightNations(e.text)}</div>
                 </div>
               ))}
@@ -93,15 +93,15 @@ export function EventsPanel({ onClose }: { onClose: () => void }) {
 
         {/* Right: active treaties */}
         <div>
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, marginBottom: 8 }}>ACTIVE TREATIES & DEALS</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, marginBottom: 8 }}>ACTIVE TREATIES & DEALS</div>
           {treaties.length === 0 ? (
-            <div style={{ color: '#667', fontSize: 12, fontStyle: 'italic' }}>No treaties in force. The powers act alone.</div>
+            <div style={{ color: '#8a96aa', fontSize: 12, fontStyle: 'italic' }}>No treaties in force. The powers act alone.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {treaties.map((t, i) => (
                 <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #222', borderRadius: 6, padding: '10px 12px' }}>
                   <div style={{ fontSize: 12, color: '#ddd' }}>{t.icon} {t.label}</div>
-                  <div style={{ fontSize: 10, color: '#667', marginTop: 2 }}>{t.sub}</div>
+                  <div style={{ fontSize: 10, color: '#8a96aa', marginTop: 2 }}>{t.sub}</div>
                 </div>
               ))}
             </div>

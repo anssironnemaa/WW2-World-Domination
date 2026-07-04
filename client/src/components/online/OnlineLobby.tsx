@@ -13,7 +13,7 @@ const LABEL: Record<string, string> = {
 const box: React.CSSProperties = { background: '#0f141a', border: '1px solid #333', borderRadius: 6, color: '#fff', padding: '9px 12px', fontSize: 14, width: '100%' }
 const primaryBtn = (on: boolean): React.CSSProperties => ({
   width: '100%', padding: '12px 0', borderRadius: 6, border: 'none', fontWeight: 'bold', fontSize: 14,
-  letterSpacing: 1, background: on ? '#c8a830' : '#333', color: on ? '#0d0d0d' : '#666', cursor: on ? 'pointer' : 'not-allowed',
+  letterSpacing: 1, background: on ? '#c8a830' : '#333', color: on ? '#0d0d0d' : '#8f8f8f', cursor: on ? 'pointer' : 'not-allowed',
 })
 
 export function OnlineLobby() {
@@ -91,10 +91,10 @@ function CreateWar() {
         <div style={{ textAlign: 'center', padding: 16, borderRadius: 8, background: 'rgba(200,168,48,0.08)', border: '1px solid #5a4a20' }}>
           <div style={{ fontSize: 11, color: '#c8a830', letterSpacing: 2 }}>SHARE THIS GAME CODE</div>
           <div style={{ fontSize: 40, fontWeight: 'bold', letterSpacing: 8, color: '#ffe066', margin: '6px 0' }}>{room.code}</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0' }}>Others open the game, tap <b>JOIN WITH CODE</b>, and enter this.</div>
+          <div style={{ fontSize: 11, color: '#a8b6ca' }}>Others open the game, tap <b>JOIN WITH CODE</b>, and enter this.</div>
           {!room.kv && <div style={{ fontSize: 10, color: '#e0a060', marginTop: 6 }}>⚠ No KV configured — cross-device play needs KV env vars in production.</div>}
         </div>
-        <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1 }}>SEATS</div>
+        <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1 }}>SEATS</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {NATIONS.map(n => {
             const seat = live?.seats[n]
@@ -108,7 +108,7 @@ function CreateWar() {
             )
           })}
         </div>
-        <div style={{ fontSize: 11, color: '#7a8aa0', textAlign: 'center' }}>
+        <div style={{ fontSize: 11, color: '#98a7bd', textAlign: 'center' }}>
           {claimed.length} of {humanSeats.length - 1} remote {humanSeats.length - 1 === 1 ? 'player has' : 'players have'} joined. You can begin whenever you like — unclaimed human seats simply wait.
         </div>
         <button onClick={begin} style={primaryBtn(true)}>▶ BEGIN THE WAR</button>
@@ -119,10 +119,10 @@ function CreateWar() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
-        <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, marginBottom: 5 }}>WAR NAME</div>
+        <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, marginBottom: 5 }}>WAR NAME</div>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. The Grand Alliance" style={box} />
       </div>
-      <div style={{ fontSize: 11, color: '#7a8aa0', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, color: '#98a7bd', lineHeight: 1.5 }}>
         Set each power to a Human seat (for you or a friend joining on their own device) or AI. Then pick which one is <b>yours</b>.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -150,7 +150,7 @@ function CreateWar() {
           style={{ ...box, width: 110, textAlign: 'center', letterSpacing: 4 }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-        <span style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>AI DIFFICULTY</span>
+        <span style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>AI DIFFICULTY</span>
         {(['easy', 'normal', 'hard'] as AiDifficulty[]).map(d => (
           <button key={d} onClick={() => setDifficulty(d)} style={{
             padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 11, textTransform: 'capitalize',
@@ -225,7 +225,7 @@ function JoinWar() {
     return (
       <div style={{ textAlign: 'center', padding: 24 }}>
         <div style={{ fontSize: 15, color: '#ffe066', fontWeight: 'bold' }}>You are {LABEL[nation as string]}.</div>
-        <div style={{ fontSize: 12, color: '#8a9bb0', marginTop: 8 }}>Waiting for the host to begin the war…</div>
+        <div style={{ fontSize: 12, color: '#a8b6ca', marginTop: 8 }}>Waiting for the host to begin the war…</div>
         <div style={{ fontSize: 22, marginTop: 12 }}>⏳</div>
       </div>
     )
@@ -234,7 +234,7 @@ function JoinWar() {
   if (!room) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 11, color: '#7a8aa0', textAlign: 'center' }}>Enter the code your host shared.</div>
+        <div style={{ fontSize: 11, color: '#98a7bd', textAlign: 'center' }}>Enter the code your host shared.</div>
         <input value={code} onChange={e => setCode(e.target.value.toUpperCase().slice(0, 5))} placeholder="ABCDE"
           style={{ ...box, textAlign: 'center', letterSpacing: 8, fontSize: 28, fontWeight: 'bold' }} />
         <button onClick={lookup} disabled={code.trim().length < 4} style={primaryBtn(code.trim().length >= 4)}>🔎 FIND GAME</button>
@@ -247,7 +247,7 @@ function JoinWar() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ textAlign: 'center', fontSize: 15, color: '#fff', fontWeight: 'bold' }}>{room.name}</div>
-      <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1 }}>CHOOSE AN OPEN NATION</div>
+      <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1 }}>CHOOSE AN OPEN NATION</div>
       {openSeats.length === 0 ? (
         <div style={{ fontSize: 12, color: '#e0806a', textAlign: 'center' }}>No open human seats — all are taken or AI.</div>
       ) : (

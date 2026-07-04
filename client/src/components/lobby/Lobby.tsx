@@ -29,7 +29,7 @@ const DEFAULT_ROWS: Record<PlayableNation, Row> = {
 
 const TYPE_CYCLE: PlayerType[] = ['human', 'ai', 'npn']
 const TYPE_LABEL: Record<PlayerType, string> = { human: '👤 Human', ai: '🤖 AI', npn: '⚙ Neutral' }
-const TYPE_COLOR: Record<PlayerType, string> = { human: '#3a6b8a', ai: '#6a4a8a', npn: '#555' }
+const TYPE_COLOR: Record<PlayerType, string> = { human: '#3a6b8a', ai: '#6a4a8a', npn: '#858585' }
 
 export function Lobby() {
   const initGame = useGameStore(s => s.initGame)
@@ -72,7 +72,7 @@ export function Lobby() {
       <div style={{ width: 560, maxWidth: '92%', maxHeight: '92%', overflowY: 'auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 6 }}>
           <div style={{ fontSize: 28, fontWeight: 'bold', letterSpacing: 3, color: '#fff' }}>WORLD DOMINANCE</div>
-          <div style={{ fontSize: 12, letterSpacing: 4, color: '#8a9bb0', marginTop: 4 }}>ASSEMBLE THE POWERS · 1939</div>
+          <div style={{ fontSize: 12, letterSpacing: 4, color: '#a8b6ca', marginTop: 4 }}>ASSEMBLE THE POWERS · 1939</div>
         </div>
 
         {/* Local (pass-and-play) vs Online (multi-device) */}
@@ -92,7 +92,7 @@ export function Lobby() {
         {(saves.length > 0 || true) && (
           <div style={{ margin: '16px 0', padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid #222' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1 }}>▸ SAVED WARS</span>
+              <span style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1 }}>▸ SAVED WARS</span>
               <label style={{ fontSize: 10, color: '#8ab4d8', cursor: 'pointer', border: '1px solid #3a5b7a', borderRadius: 4, padding: '3px 8px' }}>
                 ⬆ IMPORT FILE
                 <input type="file" accept="application/json,.json" style={{ display: 'none' }}
@@ -105,14 +105,14 @@ export function Lobby() {
               </label>
             </div>
             {saves.length === 0 ? (
-              <div style={{ fontSize: 11, color: '#667', fontStyle: 'italic' }}>No saved wars yet — start one below, or import a save file.</div>
+              <div style={{ fontSize: 11, color: '#8a96aa', fontStyle: 'italic' }}>No saved wars yet — start one below, or import a save file.</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {saves.map(s => (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.03)', border: '1px solid #222' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, color: '#fff', fontWeight: 'bold' }}>{s.name}</div>
-                      <div style={{ fontSize: 10, color: '#667' }}>{roundToDate(s.round).short} · saved {new Date(s.savedAt).toLocaleString()}</div>
+                      <div style={{ fontSize: 10, color: '#8a96aa' }}>{roundToDate(s.round).short} · saved {new Date(s.savedAt).toLocaleString()}</div>
                     </div>
                     <button onClick={() => loadWar(s.id)} style={{ padding: '5px 12px', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>▶ CONTINUE</button>
                     <button onClick={() => exportSave(s.id)} title="Export to file" style={{ background: 'none', border: '1px solid #3a5b7a', borderRadius: 4, color: '#8ab4d8', cursor: 'pointer', fontSize: 12, padding: '3px 7px' }}>⬇</button>
@@ -121,18 +121,18 @@ export function Lobby() {
                 ))}
               </div>
             )}
-            <div style={{ textAlign: 'center', fontSize: 10, color: '#556', marginTop: 10 }}>— or start a new war below —</div>
+            <div style={{ textAlign: 'center', fontSize: 10, color: '#8a96aa', marginTop: 10 }}>— or start a new war below —</div>
           </div>
         )}
 
         {/* New war name */}
         <div style={{ margin: '16px 0 8px' }}>
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, marginBottom: 5 }}>NAME THIS WAR</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, marginBottom: 5 }}>NAME THIS WAR</div>
           <input value={warName} onChange={e => setWarName(e.target.value)} placeholder="e.g. Operation Barbarossa"
             style={{ width: '100%', background: '#0f141a', border: '1px solid #333', borderRadius: 6, color: '#fff', padding: '9px 12px', fontSize: 14 }} />
         </div>
 
-        <div style={{ fontSize: 11, color: '#7a8aa0', textAlign: 'center', margin: '10px 0 18px', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: '#98a7bd', textAlign: 'center', margin: '10px 0 18px', lineHeight: 1.5 }}>
           Tap each power to set it as Human, AI, or Neutral. Human players enter a
           secret 4-digit PIN to lock in their orders during the game.
         </div>
@@ -148,7 +148,7 @@ export function Lobby() {
               }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{NATION_LABELS[n]}</div>
-                  <div style={{ fontSize: 10, color: '#8a9bb0' }}>{STARTING_IPC[n]} IPC start</div>
+                  <div style={{ fontSize: 10, color: '#a8b6ca' }}>{STARTING_IPC[n]} IPC start</div>
                 </div>
 
                 {row.type === 'human' && (
@@ -177,7 +177,7 @@ export function Lobby() {
 
         {/* AI difficulty */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, justifyContent: 'center' }}>
-          <span style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>AI DIFFICULTY</span>
+          <span style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>AI DIFFICULTY</span>
           {(['easy', 'normal', 'hard'] as AiDifficulty[]).map(d => (
             <button key={d} onClick={() => setDifficulty(d)} style={{
               padding: '4px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 11, textTransform: 'capitalize',
@@ -188,7 +188,7 @@ export function Lobby() {
           ))}
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#7a8aa0' }}>
+        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#98a7bd' }}>
           {humanCount} human · {aiCount} AI · {NATIONS.length - humanCount - aiCount} neutral
           {!uniqueHumanPins && <span style={{ color: '#e0806a', marginLeft: 8 }}>· human PINs must be unique</span>}
           {!pinsOk && <span style={{ color: '#e0806a', marginLeft: 8 }}>· every human needs a 4-digit PIN</span>}
@@ -196,11 +196,11 @@ export function Lobby() {
 
         <button onClick={start} disabled={!canStart} style={{
           width: '100%', marginTop: 16, padding: '13px 0', borderRadius: 6, border: 'none',
-          background: canStart ? '#c8a830' : '#333', color: canStart ? '#0d0d0d' : '#666',
+          background: canStart ? '#c8a830' : '#333', color: canStart ? '#0d0d0d' : '#8f8f8f',
           fontWeight: 'bold', fontSize: 14, letterSpacing: 2, cursor: canStart ? 'pointer' : 'not-allowed',
         }}>▶ BEGIN THE WAR</button>
 
-        <div style={{ textAlign: 'center', fontSize: 10, color: '#556', marginTop: 12, lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', fontSize: 10, color: '#8a96aa', marginTop: 12, lineHeight: 1.5 }}>
           Hotseat mode — pass one device between human players; each unlocks their
           turn with their PIN. For separate devices, use ONLINE above.
         </div>

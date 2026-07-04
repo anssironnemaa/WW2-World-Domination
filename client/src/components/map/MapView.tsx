@@ -12,6 +12,7 @@ import { EventsPanel } from '../events/EventsPanel'
 import { WarRoomPanel } from '../warroom/WarRoomPanel'
 import { TechPanel } from '../tech/TechPanel'
 import { GameMenu } from '../menu/GameMenu'
+import { ZoomControls } from '../common/ZoomControls'
 import { UNIT_TYPES } from '../../data/units'
 import type { GameState, Nation } from '../../data/types'
 
@@ -39,6 +40,9 @@ export function MapView() {
   const [showEvents, setShowEvents] = useState(false)
   const [showWarRoom, setShowWarRoom] = useState(false)
   const [showTech, setShowTech] = useState(false)
+  const [drawer, setDrawer] = useState(false)   // mobile: slide-in sidebar
+  const viewMode = useGameStore(s => s.viewMode)
+  const isMobile = viewMode === 'mobile'
   const game = useGameStore(s => s.game)
   const selectedZoneId = useGameStore(s => s.selectedZoneId)
   const selectZone = useGameStore(s => s.selectZone)
@@ -90,62 +94,81 @@ export function MapView() {
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <TopBar />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <Sidebar />
+        {/* Desktop: sidebar always docked. Mobile: it slides in as a drawer. */}
+        {!isMobile && <Sidebar />}
+        {isMobile && drawer && (
+          <div onClick={() => setDrawer(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.55)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ height: '100%', width: 230, boxShadow: '4px 0 24px rgba(0,0,0,0.6)' }}>
+              <Sidebar />
+            </div>
+          </div>
+        )}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <TransformWrapper initialScale={1} minScale={0.3} maxScale={8} wheel={{ step: 0.1 }} panning={{ velocityDisabled: true }}
+          {isMobile && (
+            <button onClick={() => setDrawer(true)} aria-label="Powers" style={{
+              position: 'absolute', top: 8, left: 8, zIndex: 35, width: 38, height: 38, borderRadius: 8,
+              border: '1px solid #3a4655', background: 'rgba(14,18,24,0.9)', color: '#e6ead0', fontSize: 18, cursor: 'pointer',
+            }}>☰</button>
+          )}
+          <TransformWrapper initialScale={1} minScale={0.3} maxScale={8} wheel={{ step: 0.1 }} panning={{ velocityDisabled: true }} doubleClick={{ mode: 'reset' }}
             onTransform={(ref: { state: { scale: number } }) => setZoom(ref.state.scale)}>
-            <TransformComponent
-              wrapperStyle={{ width: '100%', height: '100%', background: '#1a4a6a' }}
-              contentStyle={{ width: '100%', height: '100%' }}
-            >
-              {svgContent ? (
-                <div ref={mapRef} onClick={onMapClick} style={{ position: 'relative', width: '100%', height: '100%', ['--lscale' as string]: labelScale }}>
-                  {/* Keep map labels (country/sea/VC names) a constant screen size when zoomed in */}
-                  <style>{`
-                    #ww2-map .tlabel { font-size: calc(6.5px * var(--lscale, 1)) !important; }
-                    #ww2-map .slabel { font-size: calc(5.5px * var(--lscale, 1)) !important; }
-                    #ww2-map .clabel { font-size: calc(5px * var(--lscale, 1)) !important; }
-                    #ww2-map .vc { font-size: calc(9px * var(--lscale, 1)) !important; }
-                    #ww2-map .fi { font-size: calc(7px * var(--lscale, 1)) !important; }
-                  `}</style>
-                  <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: svgContent }} />
-                  {/* React-managed overlay: units, arrows, battle marks (never vanish) */}
-                  <svg viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid meet"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-                    {game && <MapOverlay anchors={anchors} game={game} labelScale={labelScale} />}
-                  </svg>
-                </div>
-              ) : (
-                <div style={{ color: '#888', padding: 40, fontSize: 14, letterSpacing: 2 }}>LOADING MAP...</div>
-              )}
-            </TransformComponent>
+            {({ zoomIn, zoomOut, resetTransform }) => (
+              <>
+                <TransformComponent
+                  wrapperStyle={{ width: '100%', height: '100%', background: '#1a4a6a' }}
+                  contentStyle={{ width: '100%', height: '100%' }}
+                >
+                  {svgContent ? (
+                    <div ref={mapRef} onClick={onMapClick} style={{ position: 'relative', width: '100%', height: '100%', ['--lscale' as string]: labelScale }}>
+                      {/* Keep map labels (country/sea/VC names) a constant screen size when zoomed in */}
+                      <style>{`
+                        #ww2-map .tlabel { font-size: calc(6.5px * var(--lscale, 1)) !important; }
+                        #ww2-map .slabel { font-size: calc(5.5px * var(--lscale, 1)) !important; }
+                        #ww2-map .clabel { font-size: calc(5px * var(--lscale, 1)) !important; }
+                        #ww2-map .vc { font-size: calc(9px * var(--lscale, 1)) !important; }
+                        #ww2-map .fi { font-size: calc(7px * var(--lscale, 1)) !important; }
+                      `}</style>
+                      <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: svgContent }} />
+                      {/* React-managed overlay: units, arrows, battle marks (never vanish) */}
+                      <svg viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                        {game && <MapOverlay anchors={anchors} game={game} labelScale={labelScale} />}
+                      </svg>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#a2a2a2', padding: 40, fontSize: 14, letterSpacing: 2 }}>LOADING MAP...</div>
+                  )}
+                </TransformComponent>
+                <ZoomControls zoomIn={() => zoomIn()} zoomOut={() => zoomOut()} reset={() => resetTransform()} size={isMobile ? 'lg' : 'md'} />
+              </>
+            )}
           </TransformWrapper>
 
           {(selectedTerritory || selectedSeaZone) && (
-            <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
+            <div style={{ position: 'absolute', bottom: isMobile ? 12 : 16, right: isMobile ? 56 : 16, left: isMobile ? 8 : 'auto', zIndex: 10 }}>
               <TerritoryPanel territory={selectedTerritory} seaZone={selectedSeaZone} onClose={() => selectZone(null)} />
             </div>
           )}
 
-          {/* Legend */}
-          <div style={{
+          {/* Legend — hidden on mobile (the sidebar drawer carries the colour key) */}
+          {!isMobile && <div style={{
             position: 'absolute', bottom: 16, left: 16, background: 'rgba(10,10,10,0.85)', border: '1px solid #2a2a2a',
             borderRadius: 4, padding: '8px 12px', display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: 300,
           }}>
             {NATIONS.map(n => (
-              <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#888' }}>
+              <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#a2a2a2' }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: NATION_COLORS[n] }} />
                 {n === 'USSR' ? 'SOVIET UNION' : n.toUpperCase()}
               </div>
             ))}
-          </div>
+          </div>}
 
-          {/* Top-right buttons */}
-          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, display: 'flex', gap: 6 }}>
-            <button onClick={() => setShowStats(true)} style={topBtn('#2a3b4a', '#3a5b7a', '#cde')}>📊 STATS</button>
-            <button onClick={() => setShowEvents(true)} style={topBtn('#3a2f4a', '#5a3f7a', '#dce')}>📜 CHRONICLE</button>
-            <button onClick={() => setShowWarRoom(true)} style={topBtn('#3a3320', '#6a5a20', '#e8d9a0')}>🎖️ WAR ROOM</button>
-            <button onClick={() => setShowTech(true)} style={topBtn('#2a3a2a', '#3a6a3a', '#bfe0bf')}>🔬 TECH</button>
+          {/* Top-right buttons — above the phase panel so they're always clickable */}
+          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 40, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: 'calc(100% - 16px)' }}>
+            <button onClick={() => setShowStats(true)} style={topBtn('#2a3b4a', '#3a5b7a', '#cde')}>📊{isMobile ? '' : ' STATS'}</button>
+            <button onClick={() => setShowEvents(true)} style={topBtn('#3a2f4a', '#5a3f7a', '#dce')}>📜{isMobile ? '' : ' CHRONICLE'}</button>
+            <button onClick={() => setShowWarRoom(true)} style={topBtn('#3a3320', '#6a5a20', '#e8d9a0')}>🎖️{isMobile ? '' : ' WAR ROOM'}</button>
+            <button onClick={() => setShowTech(true)} style={topBtn('#2a3a2a', '#3a6a3a', '#bfe0bf')}>🔬{isMobile ? '' : ' TECH'}</button>
             <PurchaseButton compact />
             <GameMenu />
           </div>
@@ -244,7 +267,7 @@ function MapOverlay({ anchors, game, labelScale = 1 }: { anchors: Anchors; game:
           <g key={`u-${zoneId}`} transform={`translate(${cx} ${cy}) scale(${labelScale}) translate(${-cx} ${-cy})`}>
             {chips.map((chip, i) => {
               const y = startY + i * (CHIP_H + GAP)
-              const color = NATION_COLORS[chip.nation] ?? '#888'
+              const color = NATION_COLORS[chip.nation] ?? '#a2a2a2'
               const code = UNIT_SHORT[chip.unit] ?? chip.unit.slice(0, 3).toUpperCase()
               return (
                 <g key={i}>
@@ -318,7 +341,7 @@ function OnMapOrdersBar() {
           <input autoFocus type="password" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()}
             style={{ width: 64, background: '#1a1a1a', border: '1px solid #444', borderRadius: 4, color: '#fff', padding: '4px 6px', fontSize: 12, textAlign: 'center', letterSpacing: 2 }} />
           <button onClick={go} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>GO</button>
-          <button onClick={() => { setSel(null); setPin(''); setErr('') }} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>✕</button>
+          <button onClick={() => { setSel(null); setPin(''); setErr('') }} style={{ background: 'none', border: 'none', color: '#a2a2a2', cursor: 'pointer', fontSize: 11 }}>✕</button>
           {err && <span style={{ color: '#e05050', fontSize: 11 }}>{err}</span>}
         </>
       )}
@@ -346,7 +369,7 @@ function TurnBanner({ nation, targeting, onCancel }: { nation: Nation; targeting
           <span style={{ width: 9, height: 9, borderRadius: '50%', background: NATION_COLORS[nation], display: 'inline-block' }} />
           <span style={{ color: '#fff' }}>{nation.toUpperCase()} — click your zones to move ({myOrders.length} order{myOrders.length === 1 ? '' : 's'})</span>
           <button onClick={() => { lockOrders(nation); setOrderingNation(null) }} style={{ padding: '3px 10px', borderRadius: 12, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>✓ LOCK</button>
-          <button onClick={() => setOrderingNation(null)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>switch</button>
+          <button onClick={() => setOrderingNation(null)} style={{ background: 'none', border: 'none', color: '#a2a2a2', cursor: 'pointer', fontSize: 11 }}>switch</button>
         </>
       )}
     </div>

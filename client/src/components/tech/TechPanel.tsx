@@ -22,14 +22,14 @@ export function TechPanel({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid #222' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>🔬 TECHNOLOGY & RESEARCH</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{TECH_COST} IPC per level · four doctrines, three levels each</div>
+          <div style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>{TECH_COST} IPC per level · four doctrines, three levels each</div>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: '1px solid #444', borderRadius: 4, color: '#ccc', padding: '6px 14px', cursor: 'pointer', fontSize: 12 }}>✕ CLOSE</button>
       </div>
 
       {/* Nation selector */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '12px 22px', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: '#8a9bb0' }}>RESEARCH FOR:</span>
+        <span style={{ fontSize: 11, color: '#a8b6ca' }}>RESEARCH FOR:</span>
         {humanNations.map(n => (
           <button key={n} onClick={() => { setNation(n); setError('') }} style={{
             padding: '4px 12px', borderRadius: 14, fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
@@ -50,7 +50,7 @@ export function TechPanel({ onClose }: { onClose: () => void }) {
             <div key={branch.key} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #222', borderRadius: 8, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{branch.icon} {branch.name}</span>
-                <span style={{ fontSize: 11, color: '#8a9bb0' }}>Level {level}/3</span>
+                <span style={{ fontSize: 11, color: '#a8b6ca' }}>Level {level}/3</span>
               </div>
               {/* Level pips */}
               <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -68,7 +68,7 @@ export function TechPanel({ onClose }: { onClose: () => void }) {
                     <div key={i} style={{
                       fontSize: 11, lineHeight: 1.4, padding: '4px 8px', borderRadius: 4,
                       background: next ? 'rgba(200,168,48,0.08)' : 'transparent',
-                      color: owned ? '#8fdc8f' : next ? '#ddd' : '#666',
+                      color: owned ? '#8fdc8f' : next ? '#ddd' : '#8f8f8f',
                     }}>
                       <b>T{lv}</b> {owned ? '✓ ' : ''}{desc}
                     </div>
@@ -80,7 +80,7 @@ export function TechPanel({ onClose }: { onClose: () => void }) {
                 disabled={!canBuy}
                 style={{
                   width: '100%', padding: '8px 0', borderRadius: 5, border: 'none',
-                  background: canBuy ? '#c8a830' : '#2a2a2a', color: canBuy ? '#0d0d0d' : '#666',
+                  background: canBuy ? '#c8a830' : '#2a2a2a', color: canBuy ? '#0d0d0d' : '#8f8f8f',
                   fontWeight: 'bold', fontSize: 12, letterSpacing: 1, cursor: canBuy ? 'pointer' : 'not-allowed',
                 }}
               >

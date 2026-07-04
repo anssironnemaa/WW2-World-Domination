@@ -41,7 +41,7 @@ export function GameOverOverlay() {
         background: 'linear-gradient(180deg, rgba(20,22,28,0.9), rgba(10,12,16,0.95))',
         boxShadow: `0 0 60px ${color}33`,
       }}>
-        <div style={{ fontSize: 11, letterSpacing: 4, color: '#888' }}>{roundToDate(game.round).long.toUpperCase()} · THE WAR IS DECIDED</div>
+        <div style={{ fontSize: 11, letterSpacing: 4, color: '#a2a2a2' }}>{roundToDate(game.round).long.toUpperCase()} · THE WAR IS DECIDED</div>
         <div style={{ fontSize: 30, fontWeight: 'bold', color, letterSpacing: 2, margin: '14px 0 6px' }}>{title}</div>
         <div style={{ fontSize: 12, color: '#999', marginBottom: 24, textTransform: 'uppercase', letterSpacing: 2 }}>
           {game.victoryType === 'alliance'
@@ -49,17 +49,17 @@ export function GameOverOverlay() {
             : `7 Victory Cities under one flag`}
         </div>
 
-        <div style={{ fontSize: 10, letterSpacing: 3, color: '#888', marginBottom: 8 }}>THE HISTORY OF THE WAR</div>
+        <div style={{ fontSize: 10, letterSpacing: 3, color: '#a2a2a2', marginBottom: 8 }}>THE HISTORY OF THE WAR</div>
         <div style={{
           minHeight: 90, padding: 20, borderRadius: 4, background: 'rgba(200,168,48,0.06)',
           border: '1px solid #2a2a2a', color: '#d8c98a', fontSize: 14, lineHeight: 1.75, textAlign: 'left',
         }}>
           {doc === 'loading' || doc === null
-            ? <span style={{ color: '#666', fontStyle: 'italic' }}>The historians assemble the record of these years…</span>
+            ? <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>The historians assemble the record of these years…</span>
             : <>{doc.text.split(/\n+/).map((para, i) => (
                 <p key={i} style={{ margin: i === 0 ? '0 0 10px' : '10px 0' }}>{para}</p>
               ))}
-              <div style={{ color: '#666', fontSize: 10, marginTop: 10, textAlign: 'right' }}>
+              <div style={{ color: '#8f8f8f', fontSize: 10, marginTop: 10, textAlign: 'right' }}>
                 — {doc.source === 'gemini' ? 'official war history' : 'archival summary'}</div></>}
         </div>
 

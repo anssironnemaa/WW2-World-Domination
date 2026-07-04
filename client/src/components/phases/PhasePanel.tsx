@@ -28,9 +28,9 @@ export function PhasePanel() {
 
   return (
     <div style={{
-      position: 'absolute', top: 8, left: 8, zIndex: 20,
+      position: 'absolute', top: 50, left: 8, zIndex: 20,
       background: 'rgba(10,10,10,0.92)', border: '1px solid #2a2a2a', borderRadius: 4,
-      width: 300, maxHeight: 'calc(100% - 80px)', display: 'flex', flexDirection: 'column',
+      width: 'min(300px, calc(100vw - 16px))', maxHeight: 'calc(100% - 122px)', display: 'flex', flexDirection: 'column',
       color: '#ddd', fontSize: 12,
     }}>
       <div style={{
@@ -40,14 +40,14 @@ export function PhasePanel() {
         <div style={{ fontWeight: 'bold', fontSize: 11, letterSpacing: 1, color: '#c8a830' }}>
           {PHASE_LABELS[game.phase] ?? game.phase.toUpperCase()}
         </div>
-        <div style={{ color: '#555', fontSize: 10 }}>{open ? '▾' : '▸'}</div>
+        <div style={{ color: '#858585', fontSize: 10 }}>{open ? '▾' : '▸'}</div>
       </div>
 
       {open && (
         <div style={{ overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {game.phase === 'diplomacy' && <DiplomacyConsole />}
           {game.phase === 'purchase' && (
-            <div style={{ color: '#888', fontSize: 11, lineHeight: 1.5 }}>
+            <div style={{ color: '#a2a2a2', fontSize: 11, lineHeight: 1.5 }}>
               Each nation buys units with the 🛒 PURCHASE button (top right).
               Purchases go to the production queue and deploy at the chosen factory when built.
             </div>
@@ -68,7 +68,7 @@ export function PhasePanel() {
               style={{
                 padding: '8px 0', border: 'none', borderRadius: 3,
                 background: (allLocked || game.phase !== 'orders') ? '#c8a830' : '#333',
-                color: (allLocked || game.phase !== 'orders') ? '#0d0d0d' : '#666',
+                color: (allLocked || game.phase !== 'orders') ? '#0d0d0d' : '#8f8f8f',
                 fontWeight: 'bold', fontSize: 11, letterSpacing: 1,
                 cursor: (allLocked || game.phase !== 'orders') ? 'pointer' : 'not-allowed',
               }}
@@ -256,7 +256,7 @@ function RevealTable() {
     .filter(([, orders]) => (orders?.length ?? 0) > 0)
 
   if (entries.length === 0) {
-    return <div style={{ color: '#888', fontSize: 11 }}>No orders were issued this turn.</div>
+    return <div style={{ color: '#a2a2a2', fontSize: 11 }}>No orders were issued this turn.</div>
   }
   return (
     <>
@@ -273,7 +273,7 @@ function RevealTable() {
           ))}
         </div>
       ))}
-      <div style={{ color: '#888', fontSize: 10, fontStyle: 'italic' }}>
+      <div style={{ color: '#a2a2a2', fontSize: 10, fontStyle: 'italic' }}>
         Advancing executes all movements simultaneously and resolves battles.
       </div>
     </>
@@ -297,7 +297,7 @@ function BattleReports() {
   }
 
   if (game.battleReports.length === 0) {
-    return <div style={{ color: '#888', fontSize: 11 }}>No battles this turn.</div>
+    return <div style={{ color: '#a2a2a2', fontSize: 11 }}>No battles this turn.</div>
   }
   return (
     <>
@@ -338,7 +338,7 @@ function BattleReports() {
                 fontSize: 10, color: '#d8c98a', fontStyle: 'italic', lineHeight: 1.5,
               }}>
                 “{narr.text}”
-                <span style={{ fontStyle: 'normal', color: '#666', fontSize: 8 }}> — {narr.source === 'gemini' ? 'war correspondent' : 'field report'}</span>
+                <span style={{ fontStyle: 'normal', color: '#8f8f8f', fontSize: 10 }}> — {narr.source === 'gemini' ? 'war correspondent' : 'field report'}</span>
               </div>
             )}
             <button
@@ -346,7 +346,7 @@ function BattleReports() {
               disabled={narr === 'loading'}
               style={{
                 marginTop: 6, background: 'none', border: '1px solid #333', borderRadius: 3,
-                color: narr === 'loading' ? '#666' : '#c8a830', fontSize: 9, padding: '2px 6px',
+                color: narr === 'loading' ? '#8f8f8f' : '#c8a830', fontSize: 10, padding: '2px 6px',
                 cursor: narr === 'loading' ? 'default' : 'pointer',
               }}
             >{narr === 'loading' ? '📰 filing…' : narr ? '📰 re-narrate' : '📰 narrate'}</button>
@@ -367,9 +367,9 @@ function BattleSide({ role, nation, initial, remaining }: {
   return (
     <div style={{ fontSize: 10, lineHeight: 1.5 }}>
       <span style={{ color: NATION_COLORS[nation], fontWeight: 'bold' }}>{nation}</span>
-      <span style={{ color: '#555' }}> ({role}) </span>
+      <span style={{ color: '#858585' }}> ({role}) </span>
       {totalInit === 0 ? (
-        <span style={{ color: '#666' }}>—</span>
+        <span style={{ color: '#8f8f8f' }}>—</span>
       ) : (
         <>
           {units.map(([uid, n], i) => {
@@ -382,7 +382,7 @@ function BattleSide({ role, nation, initial, remaining }: {
               </span>
             )
           })}
-          <span style={{ color: '#666' }}> · lost {totalLost}/{totalInit}</span>
+          <span style={{ color: '#8f8f8f' }}> · lost {totalLost}/{totalInit}</span>
         </>
       )}
     </div>
@@ -417,7 +417,7 @@ function IncomeSummary() {
         )
       })}
       {(Object.values(game.productionQueues).flat().length > 0) && (
-        <div style={{ color: '#888', fontSize: 10, borderTop: '1px solid #1e1e1e', paddingTop: 6 }}>
+        <div style={{ color: '#a2a2a2', fontSize: 10, borderTop: '1px solid #1e1e1e', paddingTop: 6 }}>
           Production queues advanced — finished units deployed at their factories.
         </div>
       )}
@@ -431,7 +431,7 @@ function IncomeSummary() {
             fontSize: 11, color: '#d8c98a', fontStyle: 'italic', lineHeight: 1.55, marginBottom: 6,
           }}>
             “{bulletin.text}”
-            <span style={{ fontStyle: 'normal', color: '#666', fontSize: 8 }}> — {bulletin.source === 'gemini' ? 'World Service' : 'field wire'}</span>
+            <span style={{ fontStyle: 'normal', color: '#8f8f8f', fontSize: 10 }}> — {bulletin.source === 'gemini' ? 'World Service' : 'field wire'}</span>
           </div>
         )}
         {bulletin && bulletin !== 'loading' && (
@@ -439,7 +439,7 @@ function IncomeSummary() {
         )}
         <button onClick={generate} disabled={bulletin === 'loading'} style={{
           width: '100%', padding: '5px 0', borderRadius: 3, border: '1px solid #333',
-          background: 'none', color: bulletin === 'loading' ? '#666' : '#c8a830',
+          background: 'none', color: bulletin === 'loading' ? '#8f8f8f' : '#c8a830',
           fontSize: 10, cursor: bulletin === 'loading' ? 'default' : 'pointer',
         }}>
           {bulletin === 'loading' ? 'BROADCASTING…' : bulletin ? 'REGENERATE BULLETIN' : '📻 GENERATE NEWS BULLETIN'}
@@ -480,7 +480,7 @@ function DiplomacyConsole() {
 
   return (
     <>
-      <div style={{ color: '#888', fontSize: 11, lineHeight: 1.5 }}>
+      <div style={{ color: '#a2a2a2', fontSize: 11, lineHeight: 1.5 }}>
         Issue treaty commands. IPC transfers and mercenary payments apply immediately.
       </div>
       <textarea
@@ -495,7 +495,7 @@ function DiplomacyConsole() {
         {CMD_TEMPLATES.map(t => (
           <button key={t} onClick={() => setText(t)} title={t} style={{
             background: '#1a1a1a', border: '1px solid #333', borderRadius: 3,
-            color: '#888', fontSize: 9, padding: '2px 5px', cursor: 'pointer',
+            color: '#a2a2a2', fontSize: 10, padding: '2px 5px', cursor: 'pointer',
           }}>{t.slice(1, t.indexOf(':'))}</button>
         ))}
       </div>
@@ -507,7 +507,7 @@ function DiplomacyConsole() {
 
       {active.length > 0 && (
         <div style={{ borderTop: '1px solid #1e1e1e', paddingTop: 6 }}>
-          <div style={{ fontSize: 10, color: '#666', marginBottom: 3 }}>ACTIVE TREATIES</div>
+          <div style={{ fontSize: 10, color: '#8f8f8f', marginBottom: 3 }}>ACTIVE TREATIES</div>
           {active.map((a, i) => <div key={i} style={{ fontSize: 11, color: '#bbb' }}>{a}</div>)}
         </div>
       )}
@@ -611,7 +611,7 @@ function SpyReportsView() {
       {game.spyReports.map((r, i) => (
         <div key={i} style={{
           border: '1px solid #2a2a2a', borderRadius: 3, padding: 6,
-          borderLeft: `3px solid ${r.success ? '#7acd7a' : '#666'}`,
+          borderLeft: `3px solid ${r.success ? '#7acd7a' : '#8f8f8f'}`,
         }}>
           <div style={{ fontSize: 10, color: r.success ? '#cbe8cb' : '#999' }}>{r.detail}</div>
           {r.revealedOrders && r.revealedOrders.length > 0 && (
@@ -624,7 +624,7 @@ function SpyReportsView() {
             </div>
           )}
           {r.revealedOrders && r.revealedOrders.length === 0 && (
-            <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>(target issued no orders)</div>
+            <div style={{ fontSize: 10, color: '#8f8f8f', marginTop: 2 }}>(target issued no orders)</div>
           )}
         </div>
       ))}
@@ -686,7 +686,7 @@ function AiControl() {
       <button onClick={run} disabled={running || pending.length === 0} style={{
         padding: '6px 0', borderRadius: 3, border: 'none',
         background: (running || pending.length === 0) ? '#333' : '#3a6b8a',
-        color: (running || pending.length === 0) ? '#666' : '#fff',
+        color: (running || pending.length === 0) ? '#8f8f8f' : '#fff',
         fontWeight: 'bold', fontSize: 11, cursor: (running || pending.length === 0) ? 'default' : 'pointer',
       }}>
         {running ? 'THINKING…' : pending.length === 0 ? 'ALL AI NATIONS ORDERED' : `RUN AI NATIONS (${pending.length})`}
@@ -697,7 +697,7 @@ function AiControl() {
             <span style={{ fontSize: 11, fontWeight: 'bold', color: NATION_COLORS[nation] }}>{nation}</span>
             {!err && (
               <span style={{
-                fontSize: 8, padding: '1px 4px', borderRadius: 2, letterSpacing: 0.5,
+                fontSize: 10, padding: '1px 4px', borderRadius: 2, letterSpacing: 0.5,
                 background: res.source === 'gemini' ? '#2a4a2a' : '#3a3a2a',
                 color: res.source === 'gemini' ? '#8fdc8f' : '#c8b060',
               }}>{res.source === 'gemini' ? 'GEMINI' : 'HEURISTIC'}</span>

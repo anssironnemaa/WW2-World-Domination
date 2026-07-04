@@ -38,9 +38,9 @@ export function GameMenu() {
           background: '#101418', border: '1px solid #333', borderRadius: 8, padding: 12,
           boxShadow: '0 6px 24px rgba(0,0,0,0.7)', color: '#ddd',
         }}>
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1 }}>CURRENT WAR · {roundToDate(game.round).short}</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1 }}>CURRENT WAR · {roundToDate(game.round).short}</div>
 
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, margin: '12px 0 5px' }}>SAVE / RENAME</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, margin: '12px 0 5px' }}>SAVE / RENAME</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <input value={name} onChange={e => setName(e.target.value)}
               style={{ flex: 1, background: '#0f141a', border: '1px solid #333', borderRadius: 4, color: '#fff', padding: '6px 8px', fontSize: 12 }} />
@@ -52,7 +52,7 @@ export function GameMenu() {
             ⬇ EXPORT TO FILE
           </button>
 
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, margin: '14px 0 5px' }}>NEW WAR</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, margin: '14px 0 5px' }}>NEW WAR</div>
           {!confirmNew ? (
             <button onClick={() => setConfirmNew(true)} style={{ width: '100%', padding: '8px 0', borderRadius: 4, border: '1px solid #5a3f7a', background: 'rgba(90,63,122,0.2)', color: '#dce', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>
               🆕 START A NEW WAR
@@ -62,11 +62,11 @@ export function GameMenu() {
               <div style={{ fontSize: 11, color: '#e0c070' }}>Save the current war first?</div>
               <button onClick={newSaving} style={{ padding: '7px 0', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>💾 SAVE & START NEW</button>
               <button onClick={newDiscard} style={{ padding: '7px 0', borderRadius: 4, border: '1px solid #6a2020', background: 'rgba(120,30,30,0.2)', color: '#e0a0a0', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>🗑 DISCARD & START NEW</button>
-              <button onClick={() => setConfirmNew(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>cancel</button>
+              <button onClick={() => setConfirmNew(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#a2a2a2', cursor: 'pointer', fontSize: 11 }}>cancel</button>
             </div>
           )}
 
-          <div style={{ fontSize: 10, color: '#8a9bb0', letterSpacing: 1, margin: '14px 0 5px' }}>START SCREEN</div>
+          <div style={{ fontSize: 10, color: '#a8b6ca', letterSpacing: 1, margin: '14px 0 5px' }}>START SCREEN</div>
           {!confirmExit ? (
             <button onClick={() => setConfirmExit(true)} style={{ width: '100%', padding: '8px 0', borderRadius: 4, border: '1px solid #3a5b7a', background: 'rgba(58,91,122,0.2)', color: '#8ab4d8', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>
               ⌂ BACK TO START SCREEN
@@ -76,7 +76,7 @@ export function GameMenu() {
               <div style={{ fontSize: 11, color: '#e0c070' }}>Save the current war before leaving?</div>
               <button onClick={exitSaving} style={{ padding: '7px 0', borderRadius: 4, border: 'none', background: '#c8a830', color: '#0d0d0d', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>💾 SAVE & EXIT</button>
               <button onClick={exitDiscard} style={{ padding: '7px 0', borderRadius: 4, border: '1px solid #6a2020', background: 'rgba(120,30,30,0.2)', color: '#e0a0a0', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>🗑 EXIT WITHOUT SAVING</button>
-              <button onClick={() => setConfirmExit(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11 }}>cancel</button>
+              <button onClick={() => setConfirmExit(false)} style={{ padding: '5px 0', background: 'none', border: 'none', color: '#a2a2a2', cursor: 'pointer', fontSize: 11 }}>cancel</button>
             </div>
           )}
         </div>

@@ -46,7 +46,7 @@ export function NationBar() {
             <span style={{ color: '#8acd8a', fontSize: 11 }}>
               +{income}
             </span>
-            <span style={{ color: '#888', fontSize: 10, marginLeft: 2 }}>
+            <span style={{ color: '#a2a2a2', fontSize: 10, marginLeft: 2 }}>
               {player.type === 'ai' ? 'AI' : player.type === 'npn' ? 'NPN' : ''}
             </span>
           </div>

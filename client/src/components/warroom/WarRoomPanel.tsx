@@ -1,7 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
+import { ZoomControls } from '../common/ZoomControls'
 import { useGameStore, NATION_COLORS } from '../../store/gameStore'
 import { roundToDate } from '../../data/calendar'
+import { ADJACENCY, ZONE_KIND } from '../../data/adjacency'
 import type { Nation } from '../../data/types'
+
+const isRealNation = (n: string) => n !== 'Neutral' && n !== 'None'
+
+function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ width: 20, display: 'inline-flex', justifyContent: 'center' }}>{swatch}</span>
+      <span>{label}</span>
+    </div>
+  )
+}
 
 export function WarRoomPanel({ onClose }: { onClose: () => void }) {
   const game = useGameStore(s => s.game)!
@@ -57,6 +71,31 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
       }
     }
 
+    // ── Battle line / front: link adjacent land held by opposing powers ──
+    const owns = (id: string) => snap.ownership[id]
+    for (const [tid, owner] of Object.entries(snap.ownership)) {
+      if (!isRealNation(owner) || ZONE_KIND[tid] !== 'land') continue
+      const a = anchor(tid); if (!a) continue
+      for (const nb of ADJACENCY[tid] ?? []) {
+        if (tid >= nb || ZONE_KIND[nb] !== 'land') continue   // draw each border once
+        const other = owns(nb)
+        if (!other || !isRealNation(other) || other === owner) continue
+        const b = anchor(nb); if (!b) continue
+        // midpoint tick marks perpendicular to the link = the contested front
+        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+        const seg = document.createElementNS(SVGNS, 'line')
+        seg.setAttribute('x1', String(a[0])); seg.setAttribute('y1', String(a[1]))
+        seg.setAttribute('x2', String(b[0])); seg.setAttribute('y2', String(b[1]))
+        seg.setAttribute('stroke', '#ff5a3c'); seg.setAttribute('stroke-width', '1.3')
+        seg.setAttribute('stroke-dasharray', '2 2.5'); seg.setAttribute('opacity', '0.55')
+        add(seg)
+        const dot = document.createElementNS(SVGNS, 'circle')
+        dot.setAttribute('cx', String(mx)); dot.setAttribute('cy', String(my)); dot.setAttribute('r', '1.6')
+        dot.setAttribute('fill', '#ff7a4c'); dot.setAttribute('stroke', '#3a0d05'); dot.setAttribute('stroke-width', '0.4')
+        add(dot)
+      }
+    }
+
     // Troop total badges per zone
     for (const [zid, per] of Object.entries(snap.forces)) {
       const a = anchor(zid); if (!a) continue
@@ -66,7 +105,7 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
         const g = document.createElementNS(SVGNS, 'g')
         const rect = document.createElementNS(SVGNS, 'rect')
         rect.setAttribute('x', String(a[0] - 6)); rect.setAttribute('y', String(y - 3.5)); rect.setAttribute('width', '12'); rect.setAttribute('height', '7'); rect.setAttribute('rx', '1.5')
-        rect.setAttribute('fill', NATION_COLORS[nat] ?? '#888'); rect.setAttribute('stroke', '#000'); rect.setAttribute('stroke-width', '0.4')
+        rect.setAttribute('fill', NATION_COLORS[nat] ?? '#a2a2a2'); rect.setAttribute('stroke', '#000'); rect.setAttribute('stroke-width', '0.4')
         g.appendChild(rect)
         const text = document.createElementNS(SVGNS, 'text')
         text.setAttribute('x', String(a[0])); text.setAttribute('y', String(y + 1.6)); text.setAttribute('text-anchor', 'middle')
@@ -86,7 +125,7 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
       add(g)
     }
 
-    // Movement arrows this round
+    // Movement / attack vectors this round — bold arrows from source to target
     snap.arrows.forEach((o, idx2) => {
       const s = anchor(o.from), d = anchor(o.to); if (!s || !d) return
       const [sx, sy] = s, [dx, dy] = d
@@ -94,12 +133,16 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
       const nx = -(dy - sy) / len, ny = (dx - sx) / len
       const bow = Math.min(40, len * 0.18) * (idx2 % 2 === 0 ? 1 : -1)
       const mx = (sx + dx) / 2 + nx * bow, my = (sy + dy) / 2 + ny * bow
+      // stop the curve short of the target so the arrowhead sits cleanly
+      const t = Math.max(0, 1 - 6 / len)
+      const ex = mx + (dx - mx) * t, ey = my + (dy - my) * t
       const color = NATION_COLORS[o.nation] ?? '#fff'
-      const ang = Math.atan2(dy - my, dx - mx), ah = 7
+      const ang = Math.atan2(dy - my, dx - mx), ah = 9
       const g = document.createElementNS(SVGNS, 'g')
-      const halo = document.createElementNS(SVGNS, 'path'); halo.setAttribute('d', `M${sx},${sy} Q${mx},${my} ${dx},${dy}`); halo.setAttribute('fill', 'none'); halo.setAttribute('stroke', '#000'); halo.setAttribute('stroke-width', '4'); halo.setAttribute('opacity', '0.5'); g.appendChild(halo)
-      const path = document.createElementNS(SVGNS, 'path'); path.setAttribute('d', `M${sx},${sy} Q${mx},${my} ${dx},${dy}`); path.setAttribute('fill', 'none'); path.setAttribute('stroke', color); path.setAttribute('stroke-width', '2.4'); path.setAttribute('stroke-dasharray', '5 3'); g.appendChild(path)
-      const head = document.createElementNS(SVGNS, 'polygon'); head.setAttribute('points', `${dx},${dy} ${dx - ah * Math.cos(ang - 0.4)},${dy - ah * Math.sin(ang - 0.4)} ${dx - ah * Math.cos(ang + 0.4)},${dy - ah * Math.sin(ang + 0.4)}`); head.setAttribute('fill', color); g.appendChild(head)
+      const dStr = `M${sx},${sy} Q${mx},${my} ${ex},${ey}`
+      const halo = document.createElementNS(SVGNS, 'path'); halo.setAttribute('d', dStr); halo.setAttribute('fill', 'none'); halo.setAttribute('stroke', '#000'); halo.setAttribute('stroke-width', '5.5'); halo.setAttribute('stroke-linecap', 'round'); halo.setAttribute('opacity', '0.55'); g.appendChild(halo)
+      const path = document.createElementNS(SVGNS, 'path'); path.setAttribute('d', dStr); path.setAttribute('fill', 'none'); path.setAttribute('stroke', color); path.setAttribute('stroke-width', '3'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-dasharray', '6 3'); g.appendChild(path)
+      const head = document.createElementNS(SVGNS, 'polygon'); head.setAttribute('points', `${dx},${dy} ${dx - ah * Math.cos(ang - 0.42)},${dy - ah * Math.sin(ang - 0.42)} ${dx - ah * Math.cos(ang + 0.42)},${dy - ah * Math.sin(ang + 0.42)}`); head.setAttribute('fill', color); head.setAttribute('stroke', '#000'); head.setAttribute('stroke-width', '0.5'); g.appendChild(head)
       add(g)
     })
   }, [snap, prev, svgContent, idx])
@@ -114,29 +157,50 @@ export function WarRoomPanel({ onClose }: { onClose: () => void }) {
     <div style={{ position: 'absolute', inset: 0, zIndex: 150, background: 'rgba(6,8,12,0.97)', display: 'flex', flexDirection: 'column', color: '#e8e8d8' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid #222' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>🎖️ WAR ROOM — FRONT MOVEMENT</div>
-          <div style={{ fontSize: 11, color: '#8a9bb0', letterSpacing: 1 }}>{snap ? roundToDate(snap.round).long.toUpperCase() : 'NO DATA'}</div>
+          <div style={{ fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#fff' }}>🎖️ WAR ROOM — THEATRE MAP</div>
+          <div style={{ fontSize: 11, color: '#a8b6ca', letterSpacing: 1 }}>{snap ? roundToDate(snap.round).long.toUpperCase() : 'NO DATA'}</div>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: '1px solid #444', borderRadius: 4, color: '#ccc', padding: '6px 14px', cursor: 'pointer', fontSize: 12 }}>✕ CLOSE</button>
       </div>
 
       {history.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#667', fontStyle: 'italic' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a96aa', fontStyle: 'italic' }}>
           No turns recorded yet — the front map appears after the first turn completes.
         </div>
       ) : (
         <>
-          {/* Map */}
+          {/* Map — zoomable / pannable so you can study the front up close */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#12202c' }}>
             {svgContent
-              ? <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', filter: 'sepia(0.15) saturate(1.05)' }} dangerouslySetInnerHTML={{ __html: svgContent }} />
-              : <div style={{ color: '#667', padding: 40 }}>Loading theatre map…</div>}
+              ? <TransformWrapper initialScale={1} minScale={0.6} maxScale={7} wheel={{ step: 0.12 }} panning={{ velocityDisabled: true }} doubleClick={{ mode: 'reset' }}>
+                  {({ zoomIn, zoomOut, resetTransform }) => (
+                    <>
+                      <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
+                        <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', filter: 'sepia(0.15) saturate(1.05)' }} dangerouslySetInnerHTML={{ __html: svgContent }} />
+                      </TransformComponent>
+                      <ZoomControls zoomIn={() => zoomIn()} zoomOut={() => zoomOut()} reset={() => resetTransform()} size="lg" />
+                    </>
+                  )}
+                </TransformWrapper>
+              : <div style={{ color: '#8a96aa', padding: 40 }}>Loading theatre map…</div>}
+            <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, color: '#8a96aa', pointerEvents: 'none' }}>pinch / scroll to zoom · drag to pan</div>
+
+            {/* Legend */}
+            <div style={{
+              position: 'absolute', bottom: 10, left: 10, background: 'rgba(6,10,16,0.82)', border: '1px solid #2a3444',
+              borderRadius: 6, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 5, fontSize: 11, color: '#cdd6e2',
+            }}>
+              <LegendRow swatch={<span style={{ display: 'inline-block', width: 20, height: 3, background: '#c8a830', borderRadius: 2 }} />} label="Attack vector / troop movement" />
+              <LegendRow swatch={<span style={{ display: 'inline-block', width: 20, height: 0, borderTop: '2px dashed #ff5a3c' }} />} label="Battle line (contested front)" />
+              <LegendRow swatch={<span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', background: '#c0392b', border: '1px solid #ffcc33' }} />} label="Battle fought this month" />
+              <LegendRow swatch={<span style={{ fontSize: 12 }}>⚑</span>} label="Territory that changed hands" />
+            </div>
           </div>
 
           {/* Caption of this round's shifts */}
           <div style={{ padding: '8px 22px', minHeight: 20, fontSize: 12, color: '#d8c98a', borderTop: '1px solid #1e1e1e' }}>
             {shifts.length === 0
-              ? <span style={{ color: '#667' }}>No territory changed hands this month — the lines held.</span>
+              ? <span style={{ color: '#8a96aa' }}>No territory changed hands this month — the lines held.</span>
               : <span>⚑ {roundToDate(snap.round).long}: {shifts.map((s, i) => (
                   <span key={i}>{i > 0 ? ' · ' : ''}<b style={{ color: NATION_COLORS[s.to] }}>{s.to}</b> took {s.name}</span>
                 ))}</span>}
